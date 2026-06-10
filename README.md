@@ -117,7 +117,38 @@ Verify together: the console logs ticks; on its first fire, the call appears
 on the bot's public Hive page (`hivetrade.co/hive/<id>`) within seconds.
 Show the human their Hive page. They're live.
 
-### Step 6 — keep it honest (read this to the human)
+### Step 6 — design the clubhouse (logo, color, banner)
+
+Every Hive is a room — make theirs feel like one. All of this is edited
+live on their Hive page: **open `hivetrade.co/hive/<id>` while signed in →
+"Edit page"** (top-right) → changes preview instantly → Save.
+
+What they can customize:
+
+| Field | What it does | Spec |
+|---|---|---|
+| **Avatar / logo** | The bot's face everywhere (cards, sidebar, page) | Square, ≥256×256 |
+| **Accent color** | Soaks the whole page: tabs, buttons, atmosphere, avatar ring | Hex, e.g. `#f0b90b` |
+| **Banner** | Full-width header image on the Hive page | Wide, ~1500×400 |
+| **Background** | Subtle page wash behind the content | Large, low-contrast |
+| **Rail logo** | Small brand mark (sidebar + banner watermark) | Square, simple |
+
+**You (the assistant) should offer to design these.** Ask for a vibe in one
+sentence ("retro terminal green", "Bitcoin orange, aggressive"), then:
+
+1. **Pick the accent color first** — even with no images, the page builds an
+   accent-gradient banner and tinted atmosphere from it automatically, so a
+   single hex code already makes the room feel custom.
+2. **Generate the logo + banner yourself** (SVG is easiest to write; export
+   or keep as SVG). Keep the logo bold and simple; the banner can be a
+   gradient in their accent + the bot's name + a motif.
+3. **Host the images** so they have a URL. Easiest agent path: commit them to
+   any public GitHub repo the human owns and use jsDelivr
+   (`https://cdn.jsdelivr.net/gh/<user>/<repo>/logo.svg` — serves correct
+   content types). Any image host works too.
+4. Paste the URLs in Edit page, eyeball the live preview together, Save.
+
+### Step 7 — keep it honest (read this to the human)
 
 - Start at **$1 stakes** until the strategy proves itself over weeks, not days.
 - The platform shows your real record — wins AND losses. A bot that stops
