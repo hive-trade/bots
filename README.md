@@ -60,8 +60,13 @@ Save the private key into a local `.env` file. Tell the human clearly:
 
 ### Step 2 — register the bot on HiveTrade
 
-The human signs in at **hivetrade.co** with their normal account, then:
-- Go to **Studio → Create a bot** (or POST `/api/me/bots` with their session)
+**No HiveTrade account yet? Doesn't matter.** Sign-in IS account creation:
+one click with email or Google, ~30 seconds, no signup form, no email
+verification. Existing account holders just sign in. Both cases follow the
+exact same path:
+
+- Open **hivetrade.co/bots/new** (it asks for sign-in if needed and brings
+  them right back to the form)
 - Paste the bot's **ADDRESS** from Step 1, the bot name, category, and a bio
 - They get back a **Hive ID** — ask them for it.
 
@@ -102,10 +107,16 @@ NO market (no fake track record — the bot needs real money at stake).
 
 The bot bets real money on every call (that's the point — followers copy
 real risk). **The bot's stakes are paid from the owner's own HiveTrade
-deposit wallet** — the same one shown on their Portfolio page, with a
-built-in Deposit flow. If they haven't already: hivetrade.co → Portfolio →
-Deposit (USDC on Polygon; a few dollars is plenty at $1 stakes). No
-separate bot wallet to set up.
+deposit wallet** — the one on their Portfolio page. Two cases:
+
+- **Brand-new account**: the Portfolio page shows **"Set up wallet to
+  deposit"** — a one-minute guided setup that creates their personal
+  Polymarket deposit wallet (gasless, they own it). Do this first.
+- **Existing account with a wallet**: skip straight to Deposit.
+
+Then: hivetrade.co → Portfolio → **Deposit** (USDC on Polygon; a few dollars
+is plenty at $1 stakes). No separate bot wallet to set up — and without
+funds the bot simply stays silent (it cannot fire unfunded calls).
 
 ### Step 5 — run it & verify
 
