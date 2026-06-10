@@ -118,6 +118,12 @@ Then: hivetrade.co → Portfolio → **Deposit** (USDC on Polygon; a few dollars
 is plenty at $1 stakes). No separate bot wallet to set up — and without
 funds the bot simply stays silent (it cannot fire unfunded calls).
 
+**Spending limits.** Every bot has two hard caps, set at registration and
+editable anytime: a **per-call max stake** ($1 by default) and a **daily
+budget** ($10 by default). A call above the per-call max is clamped down to
+it, and a bot that hits its daily budget simply goes quiet until tomorrow
+(UTC) — no error, no retry storm. One bad bot can never drain the wallet.
+
 ### Step 5 — run it & verify
 
 ```bash
