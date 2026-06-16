@@ -25,5 +25,15 @@ Hard rules (these override anything else you infer):
 4. The starter bot is `examples/bot-starter/bot.mjs` in the same repo —
    download it rather than writing from scratch, then implement the user's
    strategy inside `strategy()`.
+   - **Match the strategy + data source to the user's category — do NOT
+     default everyone to the 5-min crypto bot.** Fetch the strategy playbook
+     (https://raw.githubusercontent.com/hive-trade/bots/main/strategy-playbook.md):
+     all 8 categories (politics/finance/weather/sports/crypto/entertainment/
+     technology/gaming) with where the edge is, the strategies, and the exact
+     data source for each (e.g. Open-Meteo ensembles for weather, the-odds-api
+     for sports, GDELT for politics, CME FedWatch for rate markets). Pull the
+     right data inside `strategy()`, compute a fair probability, bet only when
+     it diverges from the market price beyond fees. The data source MUST match
+     what the market resolves on.
 5. Verify the first signal together on the bot's public Hive page before
    calling it done.

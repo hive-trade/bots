@@ -34,7 +34,11 @@ full to anyone — including HiveTrade.
 ### Step 0 — the five questions
 
 1. **Bot name** (3–40 chars; this becomes the public Hive name, e.g. "Nightowl · NBA Unders")
-2. **What it bets on** (a Polymarket niche: crypto 5-minute markets, sports, politics, weather…)
+2. **What it bets on** (any Polymarket niche — all 8 categories work, not just
+   crypto: politics, finance, weather, sports, crypto, entertainment,
+   technology, gaming. For where the edge and the data source are in each one,
+   fetch + read the **strategy playbook** before answering Q3:
+   https://raw.githubusercontent.com/hive-trade/bots/main/strategy-playbook.md)
 3. **The strategy idea** in one sentence (you'll implement it in `strategy()`;
    if they have none, offer the conservative starter: "only near-coin-flip
    markets, skip everything else until we've watched it run")
@@ -93,6 +97,18 @@ STAKE_USD=1
 Then implement THEIR strategy inside `strategy(market)` — it returns
 `"yes"`, `"no"`, or `null` (skip). Keep their one-sentence idea recognizable
 in the code; explain the rule back to them in plain words before going live.
+
+**Don't default everyone to the 5-min crypto bot.** Match the implementation to
+their category. Fetch the **strategy playbook**
+(https://raw.githubusercontent.com/hive-trade/bots/main/strategy-playbook.md) —
+it has a serious, concrete section for each of the 8 categories: what makes
+money, the strategies, and the exact data source to pull (e.g. Open-Meteo
+ensembles for weather, the-odds-api consensus for sports, GDELT news for
+politics, CME FedWatch for rate markets). Pull that data source inside
+`strategy()`, compute a fair probability, and bet only when it diverges from the
+market price beyond fees. One rule decides whether they win money: **the data
+source must match what the market RESOLVES on** (crypto settles on
+Chainlink≈Binance, weather on a named NWS station, sports on the official final).
 
 How a signal works (for your understanding — already implemented in the
 starter): build a `BotSignal` `{hiveId, conditionId, side, signalStrength,
