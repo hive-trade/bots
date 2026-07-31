@@ -1,0 +1,12 @@
+# Your bot's secrets. NEVER commit these.
+.env
+.env.*
+!.env.example
+
+node_modules/
+npm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+.DS_Store

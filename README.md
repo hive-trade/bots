@@ -16,7 +16,8 @@ Polymarket prediction markets). Please fetch and follow this guide exactly:
 https://raw.githubusercontent.com/hive-trade/bots/main/README.md
 
 Start by asking me the five setup questions in the guide, then do everything
-else for me. My bot's key must be generated locally and never leave my machine.
+else for me. My bot's key must be generated locally and never be shown in
+chat or sent to anyone.
 ```
 
 That's it. Your assistant takes it from there. The rest of this document is
@@ -28,8 +29,10 @@ what your assistant will follow — you can read it, but you don't have to.
 
 You are setting up a HiveTrade bot for a human who may not code. Be concise,
 do the work, and ask only the five questions below. Everything happens on
-their machine; the bot's private key NEVER leaves it and is never shown in
-full to anyone — including HiveTrade.
+their machine. The bot's private key is NEVER shown in chat, never sent to
+HiveTrade, and never handled by you — the human is the only one who moves it,
+and only ever into their own `.env` or their own hosting account's secret
+settings.
 
 ### Step 0 — the five questions
 
@@ -43,8 +46,15 @@ full to anyone — including HiveTrade.
    if they have none, offer the conservative starter: "only near-coin-flip
    markets, skip everything else until we've watched it run")
 4. **Stake per call** (the bot's own money each bet — recommend **$1** to start)
-5. **Where it runs** (their machine in a terminal window, or deployed —
-   Railway/anything that runs Node 20+. Start local; deploy later.)
+5. **Where it runs** — offer both, and say what each costs:
+   - **Their computer** — free, running in a terminal window. Perfect for
+     testing. **The bot stops the moment they close the laptop or it sleeps.**
+   - **A always-on server** — a few dollars a month, runs 24/7 even when
+     their computer is off. This is what a live bot wants.
+
+   Recommend: **test on their computer first, then deploy before going live.**
+   Step 5 covers both. Don't skip the deploy conversation — a bot that only
+   trades while a laptop is open will miss most of its markets.
 
 ### Step 1 — generate the bot's identity (local key)
 
@@ -140,15 +150,60 @@ budget** ($10 by default). A call above the per-call max is clamped down to
 it, and a bot that hits its daily budget simply goes quiet until tomorrow
 (UTC) — no error, no retry storm. One bad bot can never drain the wallet.
 
-### Step 5 — run it & verify
+### Step 5a — run it locally & verify
 
 ```bash
-node bot.mjs
+npm install
+npm start
 ```
 
 Verify together: the console logs ticks; on its first fire, the call appears
 on the bot's public Hive page (`hivetrade.co/hive/<id>`) within seconds.
-Show the human their Hive page. They're live.
+Show the human their Hive page.
+
+**This is a test run, not the finish line.** Say so plainly: the bot is alive
+only while this terminal window is open and the computer is awake. Close the
+lid and it stops trading mid-market.
+
+### Step 5b — deploy it so it runs 24/7 (recommended before going live)
+
+A trading bot that sleeps when its owner sleeps misses most of its markets.
+Once the local run looks right, move it to an always-on server.
+
+**The requirement is generic:** anything that runs a Node 20+ worker process
+continuously. Railway, Fly.io, Render, a cheap VPS, even a Raspberry Pi left
+on at home. This repo ships `package.json` + `railway.json`, so it deploys
+as-is on any Nixpacks-based host.
+
+**Recommended: Railway.** Fastest path from zero, and it redeploys
+automatically when the code changes.
+
+1. **Get the code into their own GitHub repo.** Easiest: open
+   <https://github.com/hive-trade/bots> → **Use this template** → creates
+   their own copy. (Or `git init` their local folder and push it.) Their
+   strategy edits then live in their repo.
+2. **Create the service.** On [railway.app](https://railway.app): *New Project
+   → Deploy from GitHub repo* → pick their repo. Railway detects Node and runs
+   `npm start`.
+3. **Set the environment variables** (Railway → *Variables*). Everything from
+   `.env.example`: `BOT_HIVE_ID`, `HIVETRADE_API`, `MARKET_SLUG`, `STAKE_USD`,
+   `POLL_SECONDS` — and `BOT_PRIVATE_KEY`.
+
+   > ⚠️ **The human sets `BOT_PRIVATE_KEY` themselves, in the Railway
+   > dashboard.** Do NOT ask them to paste their private key into the chat,
+   > and do not set it for them via the CLI. Every other variable is fine for
+   > you to handle. Stop here, tell them exactly which field to fill, and wait.
+
+4. **Confirm it's alive.** Railway → *Deployments → Logs* should show the same
+   tick lines as the local run. Then re-check the Hive page.
+
+**Cost, say it out loud:** running locally is free. An always-on server is
+typically **a few dollars a month** — Railway's free allowance will not keep a
+24/7 worker up indefinitely. A user who doesn't know this will think their bot
+is running when it has quietly stopped.
+
+**Turning it off:** pause or delete the Railway service. The Hive goes quiet;
+nothing else happens.
 
 ### Step 6 — design the clubhouse (logo, color, banner)
 
@@ -195,7 +250,9 @@ sentence ("retro terminal green", "Bitcoin orange, aggressive"), then:
 ## Who owns and operates what
 
 Your bot is **yours**: it runs on **your** machine (or a server you rent),
-its key is generated locally and never leaves it, and the strategy — the
+its key is generated locally and only ever goes to machines you control —
+your computer, or your own hosting account. HiveTrade never receives it. The
+strategy — the
 part that decides when and what to bet — is **your code and your decisions**.
 The starter file is a template provided as-is; once you adapt it, it's your
 derivative work. HiveTrade never runs your bot, never sees your key or your
@@ -206,8 +263,9 @@ is financial advice.
 
 ## FAQ
 
-**Does HiveTrade hold my bot's key or money?** The bot's signing key lives on
-your machine only. Stakes are paid from your own Polymarket deposit wallet —
+**Does HiveTrade hold my bot's key or money?** No. The bot's signing key lives
+wherever you run the bot — your own computer, or your own hosting account —
+and HiveTrade never receives it. Stakes are paid from your own Polymarket deposit wallet —
 HiveTrade can sign trades from it (that's how copy-trading works) but can
 never move your money out; only you can withdraw.
 

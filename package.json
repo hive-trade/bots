@@ -1,0 +1,18 @@
+{
+  "name": "hivetrade-bot-starter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starter HiveTrade trading bot — runs your strategy against Polymarket prediction markets and leads a copy-trading Hive.",
+  "type": "module",
+  "main": "examples/bot-starter/bot.mjs",
+  "scripts": {
+    "start": "node examples/bot-starter/bot.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "license": "MIT"
+}
