@@ -11,11 +11,11 @@
 
 ```
 I want to create a trading bot on HiveTrade (a copy-trading platform for
-Polymarket prediction markets). Please fetch and follow this guide exactly:
+Polymarket and Kalshi prediction markets). Please fetch and follow this guide exactly:
 
 https://raw.githubusercontent.com/hive-trade/bots/main/README.md
 
-Start by asking me the five setup questions in the guide, then do everything
+Start by asking me the six setup questions in the guide, then do everything
 else for me. My bot's key must be generated locally and never leave my machine.
 ```
 
@@ -27,23 +27,27 @@ what your assistant will follow — you can read it, but you don't have to.
 ## For the AI assistant: the walkthrough
 
 You are setting up a HiveTrade bot for a human who may not code. Be concise,
-do the work, and ask only the five questions below. Everything happens on
+do the work, and ask only the six questions below. Everything happens on
 their machine; the bot's private key NEVER leaves it and is never shown in
 full to anyone — including HiveTrade.
 
-### Step 0 — the five questions
+### Step 0 — the six questions
 
-1. **Bot name** (3–40 chars; this becomes the public Hive name, e.g. "Nightowl · NBA Unders")
-2. **What it bets on** (any Polymarket niche — all 8 categories work, not just
+1. **Venue** — Polymarket or Kalshi. A Bot Hive trades on one venue.
+2. **Bot name** (3–40 chars; this becomes the public Hive name, e.g. "Nightowl · NBA Unders")
+3. **What it bets on** (Polymarket supports all 8 categories. The public Kalshi
+   starter currently covers verified BTC/ETH/SOL 15-minute directional markets.)
+   For Polymarket, any niche works — all 8 categories, not just
    crypto: politics, finance, weather, sports, crypto, entertainment,
    technology, gaming. For where the edge and the data source are in each one,
-   fetch + read the **strategy playbook** before answering Q3:
+   fetch + read the **strategy playbook** before answering Q4:
    https://raw.githubusercontent.com/hive-trade/bots/main/strategy-playbook.md)
-3. **The strategy idea** in one sentence (you'll implement it in `strategy()`;
+4. **The strategy idea** in one sentence (you'll implement it in `strategy()`;
    if they have none, offer the conservative starter: "only near-coin-flip
    markets, skip everything else until we've watched it run")
-4. **Stake per call** (the bot's own money each bet — recommend **$1** to start)
-5. **Where it runs** (their machine in a terminal window, or deployed —
+5. **Stake per call** (Polymarket: recommend **$1** to start. Kalshi: the
+   starter fixes size at one whole contract.)
+6. **Where it runs** (their machine in a terminal window, or deployed —
    Railway/anything that runs Node 20+. Start local; deploy later.)
 
 ### Step 1 — generate the bot's identity (local key)
@@ -71,18 +75,29 @@ exact same path:
 
 - Open **hivetrade.co/bots/new** (it asks for sign-in if needed and brings
   them right back to the form)
-- Paste the bot's **ADDRESS** from Step 1, the bot name, category, and a bio
+- Paste the bot's **ADDRESS** from Step 1, choose the venue, and enter the bot
+  name, category, and a bio
 - They get back a **Hive ID** — ask them for it.
 
 (Limits: 3 bots per account, one Hive per signer address.)
 
 ### Step 3 — the bot program
 
-Download the starter (or write it — it's one file):
+Download the starter for the chosen venue:
 
 ```bash
+# Polymarket
 curl -sO https://raw.githubusercontent.com/hive-trade/bots/main/examples/bot-starter/bot.mjs
+
+# Kalshi
+curl -sO https://raw.githubusercontent.com/hive-trade/bots/main/examples/kalshi-bot-starter/bot.mjs
 ```
+
+For Kalshi, follow [`examples/kalshi-bot-starter/README.md`](./examples/kalshi-bot-starter/README.md).
+The platform-auth EOA key signs HiveTrade messages. A separate trade-only
+Kalshi RSA key stays in the bot process, and a second strictly read-only Kalshi
+key is connected in HiveTrade Settings so the API can verify every venue fill
+before member fanout. There is no wallet, relayer, gas, or RPC configuration.
 
 Fill `.env`:
 
@@ -119,20 +134,17 @@ places the bot's own stake, and fans out to followers. Nonces are one-time;
 signals expire after 2 minutes; a bot whose own leg doesn't fill creates
 NO market (no fake track record — the bot needs real money at stake).
 
-### Step 4 — fund the bot
+### Step 4 — prepare the venue account
 
-The bot bets real money on every call (that's the point — followers copy
-real risk). **The bot's stakes are paid from the owner's own HiveTrade
-deposit wallet** — the one on their Portfolio page. Two cases:
+**Polymarket:** the bot signer owns a separate self-managed deposit wallet.
+Deploy and fund it, then bind it with the bot-signed registration request in
+HiveTrade's developer guide. Do not reuse the human operator's wallet.
 
-- **Brand-new account**: the Portfolio page shows **"Set up wallet to
-  deposit"** — a one-minute guided setup that creates their personal
-  Polymarket deposit wallet (gasless, they own it). Do this first.
-- **Existing account with a wallet**: skip straight to Deposit.
-
-Then: hivetrade.co → Portfolio → **Deposit** (USDC on Polygon; a few dollars
-is plenty at $1 stakes). No separate bot wallet to set up — and without
-funds the bot simply stays silent (it cannot fire unfunded calls).
+**Kalshi:** fund the Kalshi account used by the bot's local trade-only key. In
+that same account, create a second key with exactly `read` scope and connect it
+in HiveTrade Settings as the human bot operator. HiveTrade independently checks
+the reported order through that verifier before member fanout; it rejects a
+verifier with any write scope.
 
 **Spending limits.** Every bot has two hard caps, set at registration and
 editable anytime: a **per-call max stake** ($1 by default) and a **daily
@@ -200,16 +212,15 @@ part that decides when and what to bet — is **your code and your decisions**.
 The starter file is a template provided as-is; once you adapt it, it's your
 derivative work. HiveTrade never runs your bot, never sees your key or your
 strategy, and never makes trading decisions for you — it only verifies your
-bot's signature and executes the signed instruction from your own deposit
-wallet, exactly like it does when a human captain fires a call. Nothing here
-is financial advice.
+bot's signature and verifies the result against the Hive's selected venue.
+Nothing here is financial advice.
 
 ## FAQ
 
-**Does HiveTrade hold my bot's key or money?** The bot's signing key lives on
-your machine only. Stakes are paid from your own Polymarket deposit wallet —
-HiveTrade can sign trades from it (that's how copy-trading works) but can
-never move your money out; only you can withdraw.
+**Does HiveTrade hold my bot's key or money?** The EIP-191 signing key and every
+write-capable venue key stay on your machine. Polymarket bots use their own
+deposit wallet. Kalshi bots use their own account and send HiveTrade only a
+separate strictly read-only verifier key.
 
 **What if my assistant isn't Claude?** Any agent that can fetch this page and
 run terminal commands works — the kickoff message is agent-agnostic.
