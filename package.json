@@ -11,14 +11,15 @@
     "check": "node --check bot.mjs && node --check lib/protocol.mjs && node --check lib/polymarket.mjs && node --check lib/config.mjs && node --check lib/run.mjs",
     "test": "node --test",
     "start": "node --env-file=.env bot.mjs",
-    "bind-wallet": "node --env-file=.env scripts/bind-wallet.mjs"
+    "bind-wallet": "node --env-file=.env scripts/bind-wallet.mjs",
+    "register-wallet": "node --env-file=.env scripts/register-wallet.mjs"
   },
   "dependencies": {
-    "@polymarket/clob-client-v2": "1.0.3",
+    "@polymarket/clob-client-v2": "1.1.0",
     "axios": "1.20.0",
     "viem": "2.55.5"
   },
   "overrides": {
-    "ws": "8.21.0"
+    "ws": "8.21.3"
   }
 }

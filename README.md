@@ -86,7 +86,7 @@ do not add a second local Kalshi order or a Polymarket-style fill report.
    a substitute. Follow [wallet setup](https://docs.polymarket.com/trading/wallets-auth).
 2. Set `POLYMARKET_DEPOSIT_WALLET` to the deposit contract address, not the signing
    address. Complete funding/wrapping using Polymarket's supported tools.
-3. Run `npm run bind-wallet` to associate that wallet with this Hive. The API checks
+3. Run `npm run bind-wallet` (alias: `npm run register-wallet`) to associate that wallet with this Hive. The API checks
    its on-chain owner. This is a setup write, not a trade.
 4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. The runner derives CLOB
    authentication locally and retrieves the public builder configuration from HiveTrade.
