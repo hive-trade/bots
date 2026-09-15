@@ -1,0 +1,13 @@
+import { isAddress } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { config } from '../lib/config.mjs';
+import { walletMessage, jsonRequest } from '../lib/protocol.mjs';
+const cfg = config();
+if (cfg.venue !== 'polymarket') throw new Error('Wallet binding is only for Polymarket');
+const walletAddress = process.env.POLYMARKET_DEPOSIT_WALLET;
+if (!isAddress(walletAddress ?? '')) throw new Error('Set POLYMARKET_DEPOSIT_WALLET');
+const account = privateKeyToAccount(process.env.BOT_PRIVATE_KEY);
+const registration = { hiveId: cfg.hiveId, walletAddress, issuedAt: Date.now() };
+const signature = await account.signMessage({ message: walletMessage(registration) });
+await jsonRequest(`${cfg.api}/api/admin/bot/register-wallet`, { ...registration, signature });
+console.log('Wallet binding accepted.');
