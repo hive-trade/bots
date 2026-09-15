@@ -1,39 +1,31 @@
 ---
 name: hivetrade-bot
-description: Create and run a HiveTrade trading bot end-to-end — generates a local key, registers a bot Hive, implements the user's strategy, and runs it. Use when the user wants to create/build/launch a HiveTrade bot, a copy-trading bot, or "a bot hive", or pastes the HiveTrade bot kickoff message.
+description: Set up the standalone public HiveTrade Polymarket bot starter, including local key generation, deposit-wallet registration, mock verification, strategy implementation, and an explicitly user-authorized live start.
 ---
 
-# HiveTrade bot creator
+# HiveTrade Polymarket bot setup
 
-You are setting up a real-money prediction-market bot for the user on
-HiveTrade. The canonical, always-current walkthrough lives in the repo —
-**fetch it and follow it exactly**:
+Use the repository README as the canonical walkthrough:
 
     https://raw.githubusercontent.com/hive-trade/bots/main/README.md
 
-Hard rules (these override anything else you infer):
+Follow these rules:
 
-1. **The bot's private key is generated locally and never leaves the user's
-   machine.** Never print it into chat, never send it anywhere. Only the
-   public ADDRESS is registered with HiveTrade.
-2. **Ask the five setup questions first** (name, niche, strategy sentence,
-   stake — recommend $1, where it runs), then do everything yourself.
-3. **Explain the strategy back in plain words** before the first live run,
-   and state plainly: real money, real markets, losses are public, never
-   stake more than they can afford to lose. You set up the bot; the USER
-   decides to start it.
-4. The starter bot is `examples/bot-starter/bot.mjs` in the same repo —
-   download it rather than writing from scratch, then implement the user's
-   strategy inside `strategy()`.
-   - **Match the strategy + data source to the user's category — do NOT
-     default everyone to the 5-min crypto bot.** Fetch the strategy playbook
-     (https://raw.githubusercontent.com/hive-trade/bots/main/strategy-playbook.md):
-     all 8 categories (politics/finance/weather/sports/crypto/entertainment/
-     technology/gaming) with where the edge is, the strategies, and the exact
-     data source for each (e.g. Open-Meteo ensembles for weather, the-odds-api
-     for sports, GDELT for politics, CME FedWatch for rate markets). Pull the
-     right data inside `strategy()`, compute a fair probability, bet only when
-     it diverges from the market price beyond fees. The data source MUST match
-     what the market resolves on.
-5. Verify the first signal together on the bot's public Hive page before
-   calling it done.
+1. Generate the signing key locally. Never print the private key into chat,
+   include it in a request, commit it, or disclose it to HiveTrade. Only its
+   address is public.
+2. Ask the five setup questions in the README before implementation.
+3. Clone the repository, use `npm ci`, copy `.env.example` to `.env`, and run
+   `npm test`. Do not rewrite the signing helpers.
+4. Use the bot's own official Polymarket `POLY_1271` deposit wallet. Confirm its
+   owner is the signer, register it with `npm run register-wallet`, and fund the
+   deposit wallet rather than the signer EOA.
+5. Match the strategy and data source to the market's stated resolution source.
+   Keep `strategy()` returning `null` until the rule is reviewed and tested.
+6. Explain the strategy, risks, fees, and stake in plain language. Real money is
+   involved, losses are public, and the user decides whether to start the funded
+   runner. Never perform the first live start without that explicit decision.
+7. Verify the first authorized signal, captain fill, and public Hive record
+   together. Stop the process if the fill or record does not reconcile.
+8. Do not adapt this Polymarket starter for Kalshi. Use the linked Kalshi guide,
+   whose execution and credential contract is different.
