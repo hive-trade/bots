@@ -6,3 +6,6 @@ state/
 *.log
 
 .DS_Store
+
+# Local public deployment destinations
+deploy/*.local.json

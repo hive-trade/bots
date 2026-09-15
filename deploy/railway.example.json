@@ -1,0 +1,13 @@
+{
+  "project": "REPLACE_WITH_PROJECT_UUID",
+  "environment": "REPLACE_WITH_ENVIRONMENT_UUID",
+  "service": "REPLACE_WITH_EMPTY_SERVICE_UUID",
+  "intervalMinutes": 15,
+  "variables": {
+    "VENUE": "polymarket",
+    "BOT_API_URL": "https://api.hivetrade.com",
+    "BOT_HIVE_ID": "1",
+    "MARKET_SLUG": "replace-with-an-open-binary-market-slug",
+    "MAX_STAKE_USD": "1"
+  }
+}

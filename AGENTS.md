@@ -26,3 +26,6 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
 Changes to protocol/execution require tests for failure and ambiguous responses,
 not just successful orders. Update docs when behavior changes. This repo must
 remain usable without the private HiveTrade monorepo.
+
+For Railway server setup, follow `skills/hivetrade-deploy/SKILL.md` and
+`docs/railway.md`. Use the public-config deployment helper for scheduled previews.
