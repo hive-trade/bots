@@ -129,6 +129,17 @@ order retries. See [recovery](docs/recovery.md) before restarting after a failur
 
 ## Hosting and extending
 
+Local execution stops when the computer sleeps or the process exits. A server
+can run scheduled checks while your computer is off; review the host's current
+pricing and job schedule before deploying. Keep your strategy in a repository
+you control and choose its visibility deliberately.
+
+`railway.json` starts `node bot.mjs` using the host's environment variables, so
+no uploaded `.env` file is needed. It disables automatic restarts: an uncertain
+trade must be reconciled, not restarted in a loop. Node 24+ is declared in
+`package.json`. Set up a persistent volume and scheduling explicitly; this config
+does not turn the one-shot example into a continuous strategy.
+
 Use one runner instance and a persistent volume for `STATE_DIR`. A redeploy must
 keep the journal; an empty new volume loses duplicate protection. Configure
 secrets through your hosting provider's secret settings, never a Dockerfile or
