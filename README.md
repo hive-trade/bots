@@ -83,7 +83,7 @@ do not add a second local Kalshi order or a Polymarket-style fill report.
 1. Set `VENUE=polymarket`. Complete Polymarket's supported wallet setup using this
    bot's signing identity. The bot needs its **own deployed deposit wallet**, with
    tradable collateral and trading approvals; your human account's wallet is not
-   a substitute. Follow [wallet setup](https://docs.polymarket.com/trading/wallets).
+   a substitute. Follow [wallet setup](https://docs.polymarket.com/trading/wallets-auth).
 2. Set `POLYMARKET_DEPOSIT_WALLET` to the deposit contract address, not the signing
    address. Complete funding/wrapping using Polymarket's supported tools.
 3. Run `npm run bind-wallet` to associate that wallet with this Hive. The API checks
