@@ -160,3 +160,11 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 Compatibility checked against HiveTrade's current API contract on 2026-09-15.
 Offline tests and dry runs do not certify a funded live account. Report an issue
 with redacted configuration and an error stage; never attach keys or full SDK logs.
+
+### Let an AI agent set up Railway hosting
+
+Give your agent this repository and point it to
+[`skills/hivetrade-deploy/SKILL.md`](skills/hivetrade-deploy/SKILL.md).
+The [deployment guide](docs/railway.md) provides `plan`, `deploy` and `verify`
+commands for a new Railway service, persistent storage and scheduled dry runs.
+It uses your existing Railway CLI login and keeps live trading disabled.
