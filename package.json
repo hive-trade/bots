@@ -1,18 +1,22 @@
 {
-  "name": "hivetrade-polymarket-bot-starter",
-  "version": "1.0.0",
+  "name": "hivetrade-bot-examples",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "start": "node --env-file=.env examples/bot-starter/bot.mjs",
-    "register-wallet": "node --env-file=.env scripts/register-wallet.mjs",
-    "test": "node --test"
-  },
   "engines": {
-    "node": ">=20.10"
+    "node": ">=24"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "check": "node --check bot.mjs && node --check lib/protocol.mjs && node --check lib/polymarket.mjs && node --check lib/config.mjs && node --check lib/run.mjs",
+    "test": "node --test",
+    "start": "node --env-file=.env bot.mjs",
+    "bind-wallet": "node --env-file=.env scripts/bind-wallet.mjs",
+    "register-wallet": "node --env-file=.env scripts/register-wallet.mjs"
   },
   "dependencies": {
     "@polymarket/clob-client-v2": "1.1.0",
+    "axios": "1.20.0",
     "viem": "2.55.5"
   },
   "overrides": {

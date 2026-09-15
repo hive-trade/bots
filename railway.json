@@ -1,8 +1,7 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "deploy": {
-    "startCommand": "npm start",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "startCommand": "node bot.mjs",
+    "restartPolicyType": "NEVER"
   }
 }
