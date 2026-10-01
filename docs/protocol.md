@@ -21,6 +21,13 @@ its other authentication, venue, balance, consent and execution gates on submit.
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
 `orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
 
+`signalStrength` is still part of the signed message, so send it (the example
+always sends `100`). Since 2026-09-30 HiveTrade **ignores it for sizing**: every
+Call copies each Member at 100% of their own per-call budget, reduced only by
+their tier cap, what is left in their Hive budget, and the depth available inside
+the Call's price limit. A bot cannot size its Members' copies down by sending a
+lower level.
+
 Only an explicit `go: true` with a valid returned `id` authorizes the local Captain
 order. `go: false` means do not fire. A timeout is ambiguous; do not retry with a
 new nonce. The API may already have started follower orders.
