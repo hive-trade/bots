@@ -43,7 +43,13 @@ test('strategy defaults to skip and rejects invalid caps', () => {
 test('configuration cannot silently enable trading or redirect signed requests', () => {
   const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };
   assert.equal(config(env).live, false);
-  for (const patch of [{ BOT_HIVE_ID: '1.5' }, { MAX_STAKE_USD: '-1' }, { BOT_LIVE_TRADING_ENABLED: 'yes' }, { BOT_API_URL: 'https://example.com' }, { SIGNAL_STRENGTH: '11' }]) assert.throws(() => config({ ...env, ...patch }));
+  for (const patch of [{ BOT_HIVE_ID: '1.5' }, { MAX_STAKE_USD: '-1' }, { BOT_LIVE_TRADING_ENABLED: 'yes' }, { BOT_API_URL: 'https://example.com' }]) assert.throws(() => config({ ...env, ...patch }));
+});
+test('a leftover SIGNAL_STRENGTH never changes the signed level: every Call copies at 100%', () => {
+  const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };
+  for (const level of [undefined, '', '10', '25', '50', '100', '11']) {
+    assert.equal(config({ ...env, ...(level === undefined ? {} : { SIGNAL_STRENGTH: level }) }).strength, 100);
+  }
 });
 test('order ID and requested amount never stand in for real fills', () => {
   const response = { orderID: 'o', status: 'matched', makingAmount: '0.8', takingAmount: '2' };

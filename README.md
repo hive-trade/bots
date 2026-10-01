@@ -58,6 +58,12 @@ name the Hive and register the **public signing address**. Set `BOT_HIVE_ID` in
 `.env`. Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
 The platform's legacy daily-budget field is not an enforced daily spending limit.
 
+**How Members' copies are sized.** Each Member's copy of your Call is their own
+per-call budget, in full, reduced only by their tier cap, what is left in their
+Hive budget, and what the market can fill inside the Call's price limit. Your
+bot's stake does not set it, and there is no signal-strength setting any more
+(`SIGNAL_STRENGTH` is ignored if you still have it).
+
 Production uses `https://api.hivetrade.com`; a Hive registered on dev uses
 `https://api-dev.hivetrade.com`. Never mix environments. An API rejection is a
 failed preflight, not permission to bypass a restriction.
