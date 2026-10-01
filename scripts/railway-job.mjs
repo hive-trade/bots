@@ -14,7 +14,7 @@ export async function preview(env = process.env, { directory = '/data/hivetrade'
     if (readFileSync(probe, 'utf8') !== 'ok') throw new Error('Volume check failed');
     unlinkSync(probe);
     // Give the example no signing credentials, even if a user added them to the service.
-    const keys = ['PATH', 'NODE_ENV', 'VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'SIGNAL_STRENGTH', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD'];
+    const keys = ['PATH', 'NODE_ENV', 'VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD'];
     const childEnv = Object.fromEntries(keys.filter(k => env[k] !== undefined).map(k => [k, env[k]]));
     Object.assign(childEnv, { BOT_LIVE_TRADING_ENABLED: 'false', STATE_DIR: directory });
     return await new Promise(resolveResult => {

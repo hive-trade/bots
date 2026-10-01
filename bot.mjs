@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { privateKeyToAccount } from 'viem/accounts';
-import { config, positive } from './lib/config.mjs';
+import { config, positive, SIGNED_SIGNAL_STRENGTH } from './lib/config.mjs';
 import { jsonRequest, kalshiStake } from './lib/protocol.mjs';
 import { discoverPolymarket, preparePolymarket } from './lib/polymarket.mjs';
 import { strategy } from './strategy.mjs';
@@ -30,7 +30,7 @@ async function main() {
   if (!['yes', 'no'].includes(decision.side)) throw new Error('Invalid strategy side');
   positive(decision.maxPrice, 'strategy maxPrice', 0.99);
   let signal = { hiveId: cfg.hiveId, venue: cfg.venue, side: decision.side,
-    signalStrength: cfg.strength, intent: true, nonce: randomUUID(), issuedAt: Date.now() };
+    signalStrength: SIGNED_SIGNAL_STRENGTH, intent: true, nonce: randomUUID(), issuedAt: Date.now() };
   if (cfg.venue === 'kalshi') {
     const contracts = positive(process.env.KALSHI_CONTRACTS ?? 1, 'KALSHI_CONTRACTS');
     if (!Number.isSafeInteger(contracts)) throw new Error('Use whole contracts');

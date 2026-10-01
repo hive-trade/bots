@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { privateKeyToAccount } from 'viem/accounts';
 import { recoverMessageAddress } from 'viem';
 import { signalMessage, fillMessage, walletMessage, kalshiStake } from '../lib/protocol.mjs';
-import { config } from '../lib/config.mjs';
+import { config, SIGNED_SIGNAL_STRENGTH } from '../lib/config.mjs';
 import { strategy } from '../strategy.mjs';
 import { interpretOrder } from '../lib/polymarket.mjs';
 import { execute } from '../lib/run.mjs';
@@ -45,10 +45,15 @@ test('configuration cannot silently enable trading or redirect signed requests',
   assert.equal(config(env).live, false);
   for (const patch of [{ BOT_HIVE_ID: '1.5' }, { MAX_STAKE_USD: '-1' }, { BOT_LIVE_TRADING_ENABLED: 'yes' }, { BOT_API_URL: 'https://example.com' }]) assert.throws(() => config({ ...env, ...patch }));
 });
-test('a leftover SIGNAL_STRENGTH never changes the signed level: every Call copies at 100%', () => {
+test('there is no strength setting: the bot always signs 100 and SIGNAL_STRENGTH changes nothing', () => {
   const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };
-  for (const level of [undefined, '', '10', '25', '50', '100', '11']) {
-    assert.equal(config({ ...env, ...(level === undefined ? {} : { SIGNAL_STRENGTH: level }) }).strength, 100);
+  assert.equal(SIGNED_SIGNAL_STRENGTH, 100);
+  assert.equal('strength' in config(env), false);
+  for (const level of ['', '10', '25', '11']) assert.deepEqual(config({ ...env, SIGNAL_STRENGTH: level }), config(env));
+  const source = readFileSync(new URL('../bot.mjs', import.meta.url), 'utf8');
+  assert.match(source, /signalStrength: SIGNED_SIGNAL_STRENGTH,/);
+  for (const file of ['../lib/config.mjs', '../bot.mjs', '../scripts/railway-job.mjs', '../.env.example', '../examples/kalshi-bot-starter/.env.example']) {
+    assert.doesNotMatch(readFileSync(new URL(file, import.meta.url), 'utf8'), /env\.SIGNAL_STRENGTH|'SIGNAL_STRENGTH'|^SIGNAL_STRENGTH=/m);
   }
 });
 test('order ID and requested amount never stand in for real fills', () => {
