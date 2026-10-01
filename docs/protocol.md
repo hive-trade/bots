@@ -21,8 +21,9 @@ its other authentication, venue, balance, consent and execution gates on submit.
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
 `orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
 
-`signalStrength` is still part of the signed message, so send it (the example
-always sends `100`). Since 2026-09-30 HiveTrade **ignores it for sizing**: every
+`signalStrength` is still part of the signed message, so send a valid level
+(`10`, `25`, `50` or `100`; the example always signs `100` and has no setting for
+it). Since 2026-09-30 HiveTrade **ignores it for sizing**: every
 Call copies each Member at 100% of their own per-call budget, reduced only by
 their tier cap, what is left in their Hive budget, and the depth available inside
 the Call's price limit. A bot cannot size its Members' copies down by sending a

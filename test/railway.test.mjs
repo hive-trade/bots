@@ -14,6 +14,7 @@ test('offline plan makes no CLI calls; rejects secrets and ambiguous destination
   assert.throws(() => validate({ ...input, service: 'friendly-name' }));
   assert.throws(() => validate({ ...input, intervalMinutes: 1 }));
   assert.throws(() => validate({ ...input, variables: { ...input.variables, MARKET_SLUG: 'bad\nvalue' } }));
+  assert.throws(() => validate({ ...input, variables: { ...input.variables, SIGNAL_STRENGTH: '100' } }), /SIGNAL_STRENGTH was removed/);
 });
 test('existing deployments, linked sources, wrong targets and conflicting volumes fail closed', () => {
   assert.equal(inspectTarget(status(), input), false);

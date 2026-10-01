@@ -7,13 +7,14 @@ import { config as botConfig } from '../lib/config.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'SIGNAL_STRENGTH', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
+const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
 export function validate(input) {
   if (!input || Object.keys(input).some(k => !['project', 'environment', 'service', 'intervalMinutes', 'variables'].includes(k))) throw new Error('Unknown deployment configuration field');
   for (const key of ['project', 'environment', 'service']) if (!uuid.test(input[key] ?? '')) throw new Error(`Set an explicit Railway ${key} UUID`);
   if (![5, 10, 15, 20, 30, 60].includes(input.intervalMinutes)) throw new Error('intervalMinutes must be 5, 10, 15, 20, 30 or 60');
   const variables = input.variables;
   if (!variables || Array.isArray(variables) || typeof variables !== 'object') throw new Error('Set public bot variables');
+  if (Object.hasOwn(variables, 'SIGNAL_STRENGTH')) throw new Error('SIGNAL_STRENGTH was removed: every Call copies at 100% of each Member\'s own budget. Delete it from your deployment file.');
   for (const [key, value] of Object.entries(variables)) if (!allowed.has(key) || typeof value !== 'string' || value.length > 250 || /[\r\n\0]/.test(value)) throw new Error('Unsupported variable or value; never put credentials in this file');
   botConfig(variables);
   if (variables.VENUE === 'kalshi' && !/^KX(BTC|ETH|SOL)15M-[A-Z0-9-]+$/.test(variables.KALSHI_TICKER ?? '')) throw new Error('Set an exact supported Kalshi ticker');
