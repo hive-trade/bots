@@ -58,6 +58,14 @@ name the Hive and register the **public signing address**. Set `BOT_HIVE_ID` in
 `.env`. Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
 The platform's legacy daily-budget field is not an enforced daily spending limit.
 
+**Polymarket execution mode.** This starter supports self-managed Hives: it
+sends an intent, waits for `go: true`, places its own capped order and reports
+the actual fill. It does not implement the newer `pm-v3` relay mode, mode
+discovery or relay credential registration. Confirm the Hive's execution mode
+before enabling live trading. If the API refuses with
+`PM_CAPTAIN_EXECUTED_BY_HIVETRADE`, stop and use a compatible client; never
+place a local fallback order. Kalshi v2 remains API-owned execution.
+
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
