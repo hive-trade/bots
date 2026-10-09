@@ -8,6 +8,12 @@ a fresh UUID nonce and Unix milliseconds. Keep system time synchronized.
 Production origin: `https://api.hivetrade.com` (no trailing `/api`).
 Dev origin: `https://api-dev.hivetrade.com`. Hive and signer must match that environment.
 
+## Registration lookup
+
+`POST /api/bot/whoami` with `{ issuedAt, signature }`, signing
+`hivetrade:bot-whoami:<issuedAt>`, returns the Hive that uses this signing address.
+See [agent setup](agent-setup.md#registration-protocol).
+
 ## Common preflight
 
 `POST /api/bot/budget` with `{ issuedAt, signature }`, signing

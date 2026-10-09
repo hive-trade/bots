@@ -15,6 +15,7 @@ Read README.md and AGENTS.md, then ask about my venue, bot name, exact market,
 strategy idea, spending limit, and where it should run. Use the example as
 integration scaffolding and implement my idea in strategy.mjs. Keep secrets local
 and out of chat. Run the tests and show me a dry run before enabling real trades.
+Prepare a pre-filled "Create a bot Hive" link for me to check and submit myself.
 Explain what is ready and which account setup steps I must complete myself.
 ```
 
@@ -37,6 +38,20 @@ enable live trading, move funds or read an account credential.
 **Other MCP clients:** run `node mcp/server.mjs` from your clone (after `npm ci`)
 as a stdio server. It uses the current directory, or `HIVETRADE_BOT_DIR` if set.
 In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/server.mjs`.
+
+## How setup works
+
+1. **Agent:** creates the bot's signing key on your computer and shows only its
+   public address.
+2. **Agent:** writes your strategy, runs the tests and a dry run.
+3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
+4. **You:** open it, check the signing address, and press **Create bot Hive**.
+5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
+6. **You:** connect your Kalshi API key and consent, or fund the bot's Polymarket
+   deposit wallet.
+7. **You:** turn on live trading, only when you decide to.
+
+Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
 
 ## What you get
 
@@ -73,19 +88,12 @@ files, or credentials. The example needs no access to HiveTrade's private reposi
 
 ## 2. Register the Hive
 
-Only you can create the Hive, in your own signed-in browser. Your agent prepares
-it for you:
-
-1. The agent builds a pre-filled link (MCP tool `prepare_registration`):
-   `https://app.hivetrade.com/bots/new?name=…&venue=…&signer=<public address>&maxStake=…&from=agent`.
-   It never submits anything.
-2. Open the link (sign in first if asked). Check that the **signing address** on
-   the form is exactly the one your agent showed you, review the rest, tick the
-   Captain agreement and press **Create**.
-3. The agent then looks up the new Hive with a request signed by the bot's own
-   key (MCP tool `check_registration`, `POST /api/bot/whoami`) and writes
-   `BOT_HIVE_ID` to `.env`. If that lookup is not available yet, give it the Hive
-   ID the page showed and it sets it (`set_hive_id`), or edit `.env` yourself.
+Only you can create the Hive, in your own signed-in browser. Your agent builds a
+pre-filled link (MCP tool `prepare_registration`) and never submits it. Open it,
+check that the **signing address** is exactly the one your agent showed you, tick
+the Captain agreement and press **Create bot Hive**. The agent then reads the Hive
+ID back (`check_registration`) or, if that lookup is not available yet, asks you
+for the ID the page showed (`set_hive_id`). See [agent setup](docs/agent-setup.md).
 
 Manual fallback: sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new),
 choose the venue, name the Hive, enter the **public signing address**, and set
@@ -195,6 +203,8 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 ## Documentation and support
 
 - [Public setup docs](https://hivetrade-docs.vercel.app/run-a-bot/custom)
+- [HiveTrade docs: set up with your AI agent](https://docs.hivetrade.com/run-a-bot/agent)
+- [Set up with an AI agent](docs/agent-setup.md)
 - [Wire contract](docs/protocol.md)
 - [Recovery and verification](docs/recovery.md)
 
