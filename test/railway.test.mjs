@@ -10,7 +10,7 @@ const input = { project: id, environment: id, service: id, intervalMinutes: 15, 
 const status = (service = {}, volumes = []) => ({ id, environments: { edges: [{ node: { id, canAccess: true, serviceInstances: { edges: [{ node: { serviceId: id, ...service } }] }, volumeInstances: { edges: volumes.map(node => ({ node })) } } }] } });
 test('offline plan makes no CLI calls; rejects secrets and ambiguous destinations', () => {
   assert.equal(run('plan', input, undefined, () => assert.fail()).mode, 'dry-run only');
-  for (const key of ['BOT_PRIVATE_KEY', 'RAILWAY_TOKEN', 'BOT_LIVE_TRADING_ENABLED', 'STATE_DIR']) assert.throws(() => validate({ ...input, variables: { ...input.variables, [key]: 'secret' } }));
+  for (const key of ['BOT_PRIVATE_KEY', 'RAILWAY_TOKEN', 'BOT_LIVE_TRADING_ENABLED', 'STATE_DIR', 'SIGNAL_STRENGTH']) assert.throws(() => validate({ ...input, variables: { ...input.variables, [key]: 'secret' } }));
   assert.throws(() => validate({ ...input, service: 'friendly-name' }));
   assert.throws(() => validate({ ...input, intervalMinutes: 1 }));
   assert.throws(() => validate({ ...input, variables: { ...input.variables, MARKET_SLUG: 'bad\nvalue' } }));
@@ -74,9 +74,9 @@ import { preview } from '../scripts/railway-job.mjs';
 test('preview wrapper removes signing keys, forces dry run, checks storage and rejects failures/timeouts', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'bot-preview-'));
   const bot = join(directory, 'fixture.mjs');
-  const env = { RAILWAY_VOLUME_MOUNT_PATH: '/data', RAILWAY_DEPLOYMENT_ID: deploymentId, BOT_PRIVATE_KEY: 'never-forward', BOT_LIVE_TRADING_ENABLED: 'true', NODE_OPTIONS: '--bad-option' };
+  const env = { RAILWAY_VOLUME_MOUNT_PATH: '/data', RAILWAY_DEPLOYMENT_ID: deploymentId, BOT_PRIVATE_KEY: 'never-forward', BOT_LIVE_TRADING_ENABLED: 'true', NODE_OPTIONS: '--bad-option', SIGNAL_STRENGTH: '25' };
   try {
-    writeFileSync(bot, `if (process.env.BOT_PRIVATE_KEY || process.env.NODE_OPTIONS || process.env.BOT_LIVE_TRADING_ENABLED !== 'false') process.exit(1); console.log(JSON.stringify({mode:'DRY RUN'}));`);
+    writeFileSync(bot, `if (process.env.BOT_PRIVATE_KEY || process.env.NODE_OPTIONS || process.env.SIGNAL_STRENGTH || process.env.BOT_LIVE_TRADING_ENABLED !== 'false') process.exit(1); console.log(JSON.stringify({mode:'DRY RUN'}));`);
     assert.equal(await preview(env, { directory, bot }), true);
     assert.equal(await preview({ ...env, RAILWAY_VOLUME_MOUNT_PATH: '/wrong' }, { directory, bot }), false);
     writeFileSync(bot, `console.log(JSON.stringify({mode:'DRY RUN'})); process.exit(1);`);

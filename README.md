@@ -61,8 +61,7 @@ The platform's legacy daily-budget field is not an enforced daily spending limit
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
-bot's stake does not set it, and there is no signal-strength setting any more
-(`SIGNAL_STRENGTH` is ignored if you still have it).
+bot's stake does not set it.
 
 Production uses `https://api.hivetrade.com`; a Hive registered on dev uses
 `https://api-dev.hivetrade.com`. Never mix environments. An API rejection is a
@@ -73,7 +72,7 @@ failed preflight, not permission to bypass a restriction.
 ### Kalshi
 
 1. Set `VENUE=kalshi`.
-2. Have an eligible, funded Kalshi account. Connect its trade-only credential in
+2. Have an eligible, funded Kalshi account. Connect your Kalshi API key in
    HiveTrade Settings and complete the required execution consent.
 3. Choose an exact currently open `KXBTC15M`, `KXETH15M`, or `KXSOL15M` ticker.
    These are the series currently accepted by HiveTrade's bot API; arbitrary
