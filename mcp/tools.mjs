@@ -124,6 +124,16 @@ export function prepareRegistration({ dir, deps }, args = {}) {
   }
   params.set('from', 'agent');
   const url = `${ENVIRONMENTS[environment].web}/bots/new?${params.toString().replace(/\+/g, '%20')}`;
+  // The Hive will exist on THIS environment only, so check_registration must
+  // ask the same API. Without recording the choice, a dev link followed by a
+  // lookup that defaulted to prod could never find the Hive.
+  const currentApi = env.BOT_API_URL || ENVIRONMENTS.prod.api;
+  if (currentApi !== ENVIRONMENTS[environment].api) {
+    if (env.BOT_HIVE_ID) {
+      throw new Error(`This bot is already registered on ${environmentForApi(currentApi) ?? currentApi} (BOT_HIVE_ID ${env.BOT_HIVE_ID}). A signing address belongs to one Hive; use a new bot folder for the other environment.`);
+    }
+    updateEnv(dir, { BOT_API_URL: ENVIRONMENTS[environment].api });
+  }
   return { url, environment, signingAddress: account.address,
     instructions: [
       'Open the link in the browser where you are signed in to HiveTrade (sign in first if asked; the form stays filled).',

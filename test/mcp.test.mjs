@@ -92,6 +92,25 @@ test('prepare_registration builds the pre-filled link for the local signer and v
   }
 });
 
+test('a dev link makes the later lookup ask dev too (the choice is saved in .env)', async t => {
+  // Found live 2026-10-09: prepare_registration(environment: dev) built a dev
+  // link, but check_registration then defaulted to prod and could never find
+  // the Hive the person had just created on dev.
+  const dir = kit(t);
+  await callTool('create_signing_key', {}, { dir, deps });
+  json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'kalshi', environment: 'dev' }, { dir, deps }));
+  assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_API_URL=https:\/\/api-dev\.hivetrade\.com$/m);
+  const seen = [];
+  const fetch = async (url) => { seen.push(String(url)); return new Response(JSON.stringify({ code: 'BOT_NOT_REGISTERED' }), { status: 404, headers: { 'content-type': 'application/json' } }); };
+  const out = json(await callTool('check_registration', {}, { dir, deps, fetch }));
+  assert.equal(out.environment, 'dev');
+  assert.ok(seen[0].startsWith('https://api-dev.hivetrade.com/'), seen[0]);
+  // Once registered on dev, asking for a prod link is refused, not silently re-pointed.
+  writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8') + 'BOT_HIVE_ID=4261\n');
+  assert.ok((await callTool('prepare_registration', { name: 'Prod bot', venue: 'kalshi', environment: 'prod' }, { dir, deps })).isError);
+  assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_API_URL=https:\/\/api-dev\.hivetrade\.com$/m);
+});
+
 test('check_registration signs whoami and writes BOT_HIVE_ID, keeping other lines and 0600', async t => {
   const dir = kit(t);
   await callTool('create_signing_key', {}, { dir, deps });
