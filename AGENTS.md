@@ -4,6 +4,9 @@ Read README.md, docs/protocol.md and docs/recovery.md. This is a public example
 repository. Build the user's strategy; do not fetch, reproduce, or imply access
 to HiveTrade's private production strategies, parameters or internal telemetry.
 
+For guided setup follow docs/agent-setup.md: never ask the person to paste a key;
+never submit the Hive form for them.
+
 Ask for venue, Hive name, exact market/category, strategy in plain language,
 spending limit and local/hosted preference. Explain the example's limitations.
 Only supported Kalshi directional series work today. Do not invent general venue
