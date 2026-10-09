@@ -101,13 +101,13 @@ export function createSigningKey({ dir, deps }) {
 }
 
 export function prepareRegistration({ dir, deps }, args = {}) {
-  const { account } = needEnvAndSigner(dir, deps);
+  const { env, account } = needEnvAndSigner(dir, deps);
   const name = typeof args.name === 'string' ? args.name.trim() : '';
   if (name.length < 3 || name.length > 40) throw new Error('name must be 3 to 40 characters');
   const bio = typeof args.bio === 'string' ? args.bio.trim() : '';
   if (bio.length > 500) throw new Error('bio must be at most 500 characters');
   if (!['polymarket', 'kalshi'].includes(args.venue)) throw new Error('venue must be "polymarket" or "kalshi"');
-  const environment = pickEnvironment(args.environment ?? 'prod');
+  const environment = pickEnvironment(args.environment, env);
   const params = new URLSearchParams({ name });
   if (bio) params.set('bio', bio);
   if (args.category !== undefined && args.category !== '') {
@@ -262,7 +262,7 @@ export const TOOLS = [
     inputSchema: object({ name: { type: 'string', description: '3 to 40 characters' }, bio: { type: 'string', description: 'Up to 500 characters' },
       category: { type: 'string', enum: CATEGORIES }, venue: { type: 'string', enum: ['polymarket', 'kalshi'] },
       maxStakeUsd: { type: 'number', minimum: 1, maximum: 100, description: 'Per-call cap in USD' },
-      environment: { type: 'string', enum: ['prod', 'dev'], description: 'Defaults to prod' } }, ['name', 'venue']),
+      environment: environmentProp }, ['name', 'venue']),
     run: (ctx, args) => prepareRegistration(ctx, args) },
   { name: 'check_registration', description: 'Ask HiveTrade, with a request signed by the bot\'s key, whether the Hive was created. On success writes BOT_HIVE_ID (and BOT_API_URL, VENUE) to .env.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => checkRegistration(ctx, args) },

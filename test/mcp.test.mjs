@@ -83,6 +83,8 @@ test('prepare_registration builds the pre-filled link for the local signer and v
   assert.ok(!out.url.includes('+'), 'spaces are encoded as %20');
   assert.ok(out.instructions.some(line => line.includes(address)));
   assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'polymarket', environment: 'dev' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com');
+  writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('BOT_API_URL=https://api.hivetrade.com', 'BOT_API_URL=https://api-dev.hivetrade.com'));
+  assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'kalshi' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com', 'follows BOT_API_URL');
   for (const bad of [{ name: 'ab', venue: 'kalshi' }, { name: 'x'.repeat(41), venue: 'kalshi' }, { name: 'Bot', bio: 'x'.repeat(501), venue: 'kalshi' },
     { name: 'Bot', venue: 'hyperliquid' }, { name: 'Bot', venue: 'kalshi', maxStakeUsd: 0 }, { name: 'Bot', venue: 'kalshi', maxStakeUsd: 101 },
     { name: 'Bot', venue: 'kalshi', category: 'Stocks' }, { name: 'Bot', venue: 'kalshi', environment: 'staging' }]) {
