@@ -8,7 +8,7 @@
   },
   "scripts": {
     "setup": "node scripts/setup.mjs",
-    "check": "node --check bot.mjs && node --check lib/protocol.mjs && node --check lib/polymarket.mjs && node --check lib/config.mjs && node --check lib/run.mjs && node --check scripts/railway.mjs && node --check scripts/railway-job.mjs && node --check lib/setup.mjs && node --check mcp/server.mjs && node --check mcp/tools.mjs && node --check mcp/env-file.mjs && node --check mcp/deps.mjs",
+    "check": "node --check bot.mjs && node --check lib/protocol.mjs && node --check lib/polymarket.mjs && node --check lib/config.mjs && node --check lib/run.mjs && node --check scripts/railway.mjs && node --check scripts/railway-job.mjs && node --check lib/setup.mjs && node --check mcp/server.mjs && node --check mcp/tools.mjs && node --check mcp/env-file.mjs && node --check mcp/deps.mjs && node --check hooks/install-deps.mjs",
     "test": "node --test",
     "start": "node --env-file=.env bot.mjs",
     "bind-wallet": "node --env-file=.env scripts/bind-wallet.mjs",

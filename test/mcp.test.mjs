@@ -176,3 +176,13 @@ test('dry_run forces live trading off, gives the run no key and hides key-like l
   assert.doesNotMatch(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m, 'the .env flag the person set is left alone');
 });
 
+test('plugin manifests point at the MCP server and the marketplace', () => {
+  const marketplace = JSON.parse(readFileSync(join(root, '.claude-plugin/marketplace.json'), 'utf8'));
+  const plugin = JSON.parse(readFileSync(join(root, '.claude-plugin/plugin.json'), 'utf8'));
+  assert.equal(marketplace.name, 'hivetrade');
+  assert.deepEqual(marketplace.plugins.map(p => [p.name, p.source]), [['hivetrade-bot', './']]);
+  assert.equal(plugin.name, 'hivetrade-bot');
+  assert.deepEqual(plugin.mcpServers['hivetrade-bot'].args, ['${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs']);
+  assert.ok(existsSync(join(root, 'mcp/server.mjs')));
+  assert.ok(existsSync(join(root, 'skills/hivetrade-bot/SKILL.md')));
+});

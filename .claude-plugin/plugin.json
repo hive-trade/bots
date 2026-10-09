@@ -1,0 +1,20 @@
+{
+  "name": "hivetrade-bot",
+  "description": "Set up your own HiveTrade bot: signing identity, strategy, pre-filled Hive registration, dry runs and hosting guidance. Live trading stays your decision.",
+  "author": {
+    "name": "HiveTrade",
+    "url": "https://hivetrade.com"
+  },
+  "homepage": "https://github.com/hive-trade/bots",
+  "repository": "https://github.com/hive-trade/bots",
+  "keywords": ["hivetrade", "bot", "polymarket", "kalshi", "mcp"],
+  "mcpServers": {
+    "hivetrade-bot": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"],
+      "env": {
+        "HIVETRADE_DEPS_DIR": "${CLAUDE_PLUGIN_DATA}"
+      }
+    }
+  }
+}
