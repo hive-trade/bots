@@ -21,12 +21,10 @@ its other authentication, venue, balance, consent and execution gates on submit.
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
 `orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
 
-`signalStrength` is still part of the signed message, so send it (the example
-always sends `100`). Since 2026-09-30 HiveTrade **ignores it for sizing**: every
-Call copies each Member at 100% of their own per-call budget, reduced only by
-their tier cap, what is left in their Hive budget, and the depth available inside
-the Call's price limit. A bot cannot size its Members' copies down by sending a
-lower level.
+`signalStrength` is a fixed compatibility field of the signed message: always
+send `100`, as the example does. HiveTrade ignores its value. Each Member's copy
+is their own per-call budget, reduced only by their tier cap, what is left in
+their Hive budget, and the depth available inside the Call's price limit.
 
 Only an explicit `go: true` with a valid returned `id` authorizes the local Captain
 order. `go: false` means do not fire. A timeout is ambiguous; do not retry with a
@@ -52,7 +50,7 @@ This route uses the bot signature despite its `/admin` prefix.
 
 The signal includes `venue: "kalshi"`, `execution: "hivetrade-v1"`, `intent: true`,
 `kalshiTicker`, `kalshiContracts`, `kalshiPriceCents`, plus common identity, side,
-strength, stake, nonce and timestamp fields. The message prefix is
+`signalStrength` (always `100`), stake, nonce and timestamp fields. The message prefix is
 `HiveTrade bot signal kalshi-v2`. No Polymarket order fields are included.
 
 The API currently checks stake against:

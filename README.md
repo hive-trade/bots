@@ -18,6 +18,26 @@ and out of chat. Run the tests and show me a dry run before enabling real trades
 Explain what is ready and which account setup steps I must complete myself.
 ```
 
+Using Claude Code? Install the plugin below and ask it to "set up my HiveTrade bot".
+
+## Install as a Claude Code plugin
+
+```text
+/plugin marketplace add hive-trade/bots
+/plugin install hivetrade-bot@hivetrade
+```
+
+The plugin adds the guided setup skill and a local MCP server (`hivetrade-bot`)
+that works on the bot in your current project folder. Clone this repository there
+first (step 1). On the first session the plugin installs its dependencies, which
+can take about a minute; if the server shows as failed in `/mcp`, reconnect it.
+The server never returns your private key, never posts a Call, and has no way to
+enable live trading, move funds or read an account credential.
+
+**Other MCP clients:** run `node mcp/server.mjs` from your clone (after `npm ci`)
+as a stdio server. It uses the current directory, or `HIVETRADE_BOT_DIR` if set.
+In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/server.mjs`.
+
 ## What you get
 
 - A small **user-selected side + maximum price** example, disabled until configured.
@@ -53,16 +73,31 @@ files, or credentials. The example needs no access to HiveTrade's private reposi
 
 ## 2. Register the Hive
 
-Sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new), choose the venue,
-name the Hive and register the **public signing address**. Set `BOT_HIVE_ID` in
-`.env`. Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
-The platform's legacy daily-budget field is not an enforced daily spending limit.
+Only you can create the Hive, in your own signed-in browser. Your agent prepares
+it for you:
+
+1. The agent builds a pre-filled link (MCP tool `prepare_registration`):
+   `https://app.hivetrade.com/bots/new?name=…&venue=…&signer=<public address>&maxStake=…&from=agent`.
+   It never submits anything.
+2. Open the link (sign in first if asked). Check that the **signing address** on
+   the form is exactly the one your agent showed you, review the rest, tick the
+   Captain agreement and press **Create**.
+3. The agent then looks up the new Hive with a request signed by the bot's own
+   key (MCP tool `check_registration`, `POST /api/bot/whoami`) and writes
+   `BOT_HIVE_ID` to `.env`. If that lookup is not available yet, give it the Hive
+   ID the page showed and it sets it (`set_hive_id`), or edit `.env` yourself.
+
+Manual fallback: sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new),
+choose the venue, name the Hive, enter the **public signing address**, and set
+`BOT_HIVE_ID` in `.env` yourself.
+
+Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
+The legacy daily-budget field is not an enforced daily spending limit.
 
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
-bot's stake does not set it, and there is no signal-strength setting any more
-(`SIGNAL_STRENGTH` is ignored if you still have it).
+bot's stake does not set it.
 
 Production uses `https://api.hivetrade.com`; a Hive registered on dev uses
 `https://api-dev.hivetrade.com`. Never mix environments. An API rejection is a
@@ -73,7 +108,7 @@ failed preflight, not permission to bypass a restriction.
 ### Kalshi
 
 1. Set `VENUE=kalshi`.
-2. Have an eligible, funded Kalshi account. Connect its trade-only credential in
+2. Have an eligible, funded Kalshi account. Connect your Kalshi API key in
    HiveTrade Settings and complete the required execution consent.
 3. Choose an exact currently open `KXBTC15M`, `KXETH15M`, or `KXSOL15M` ticker.
    These are the series currently accepted by HiveTrade's bot API; arbitrary

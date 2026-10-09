@@ -7,7 +7,7 @@ import { config as botConfig } from '../lib/config.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'SIGNAL_STRENGTH', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
+const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
 export function validate(input) {
   if (!input || Object.keys(input).some(k => !['project', 'environment', 'service', 'intervalMinutes', 'variables'].includes(k))) throw new Error('Unknown deployment configuration field');
   for (const key of ['project', 'environment', 'service']) if (!uuid.test(input[key] ?? '')) throw new Error(`Set an explicit Railway ${key} UUID`);
