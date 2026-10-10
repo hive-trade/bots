@@ -9,14 +9,22 @@ participants' own venue accounts. Trading fees apply.
 
 ## Paste this into your agent
 
+New to this? Use an AI agent that can run commands on your computer (Claude Code,
+Codex, Cursor). Step-by-step for beginners: https://docs.hivetrade.com/run-a-bot/one-prompt
+
 ```text
-Help me build my own bot using https://github.com/hive-trade/bots.
-Read README.md and AGENTS.md, then ask about my venue, bot name, exact market,
-strategy idea, spending limit, and where it should run. Use the example as
-integration scaffolding and implement my idea in strategy.mjs. Keep secrets local
-and out of chat. Run the tests and show me a dry run before enabling real trades.
-Prepare a pre-filled "Create a bot Hive" link for me to check and submit myself.
-Explain what is ready and which account setup steps I must complete myself.
+Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
+I'm new to this, so explain each step in plain words.
+1. Clone the repository into a new folder, then read README.md and AGENTS.md.
+2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my strategy
+   idea in plain words, the most it may spend per Call, and whether it should
+   run on this computer or on a server.
+3. Create the bot's signing key. Never show me the private key or put it in chat.
+4. Turn my idea into the bot's rule, run the tests, and show me a dry run.
+5. Give me a pre-filled "Create a bot Hive" link. I will check the signing
+   address and press Create myself.
+6. Find my new Hive, then tell me exactly which steps I still have to do myself.
+Never turn on real trading unless I clearly ask you to.
 ```
 
 Using Claude Code? Install the plugin below and ask it to "set up my HiveTrade bot".
