@@ -56,3 +56,11 @@ the same journal volume after deployments. Multiple independent volumes are not 
 Automated tests use local fixtures and never place trades. A successful build or
 dry run does not validate a user's funding, eligibility, permissions or live fills.
 Live verification is a separate user decision involving real funds.
+
+
+## Polymarket execution mode changed
+
+`PM_CAPTAIN_EXECUTED_BY_HIVETRADE` means this self-managed starter cannot run
+that Hive's current protocol. Stop and use a client compatible with the Hive's
+mode. Preserve existing journal entries and reconcile any earlier uncertain
+attempts. Do not change mode or submit a local order to bypass the refusal.

@@ -23,6 +23,15 @@ its other authentication, venue, balance, consent and execution gates on submit.
 
 ## Polymarket
 
+This section describes the **self-managed** mode implemented here. A Hive using
+API-submitted Captain orders requires `pm-v3`, which this starter does not
+implement. That protocol signs a different message, with
+`execution: "hivetrade-v1"` and `signedOrder`, omitting the old `intent`,
+`orderType` and `fillResult` fields. Adding an order to this starter's old
+message is insufficient. Do not submit both protocols or fall back to a local
+order after a refusal. The existing non-2xx/explicit-go checks stop safely
+when a Hive rejects this mode.
+
 `POST /api/bot/signal` with `{ signal, signature }`. The signal contains
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
 `orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
