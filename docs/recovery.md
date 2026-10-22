@@ -39,9 +39,11 @@ The starter deliberately provides no automatic retry/recovery command.
 
 ### Kalshi accepted but fill not confirmed
 
-HiveTrade owns the order and reconciliation. Check its returned Captain outcome
-and the connected Kalshi account. Do not submit a local order or use Polymarket's
-fill endpoint to resolve it.
+HiveTrade owns the order and reconciliation. Its fixed one-minute buy window
+can continue attempting the eligible unfilled Captain amount and Member copies
+inside the same price band. An initial unconfirmed result does not authorize a
+new signal. Check the Hive and connected Kalshi account, including any later
+fills. Do not submit a local order or use Polymarket's fill endpoint to resolve it.
 
 ### Clearing a resolved incident
 
@@ -56,7 +58,6 @@ the same journal volume after deployments. Multiple independent volumes are not 
 Automated tests use local fixtures and never place trades. A successful build or
 dry run does not validate a user's funding, eligibility, permissions or live fills.
 Live verification is a separate user decision involving real funds.
-
 
 ## Polymarket execution mode changed
 

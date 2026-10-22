@@ -1,0 +1,16 @@
+{
+  "name": "hivetrade",
+  "description": "HiveTrade's public bot kit for Claude Code.",
+  "owner": {
+    "name": "HiveTrade",
+    "url": "https://hivetrade.com"
+  },
+  "plugins": [
+    {
+      "name": "hivetrade-bot",
+      "source": "./",
+      "description": "Guided setup for your own HiveTrade bot, with a local MCP server that never handles your private key.",
+      "category": "development"
+    }
+  ]
+}

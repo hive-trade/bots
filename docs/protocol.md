@@ -8,6 +8,12 @@ a fresh UUID nonce and Unix milliseconds. Keep system time synchronized.
 Production origin: `https://api.hivetrade.com` (no trailing `/api`).
 Dev origin: `https://api-dev.hivetrade.com`. Hive and signer must match that environment.
 
+## Registration lookup
+
+`POST /api/bot/whoami` with `{ issuedAt, signature }`, signing
+`hivetrade:bot-whoami:<issuedAt>`, returns the Hive that uses this signing address.
+See [agent setup](agent-setup.md#registration-protocol).
+
 ## Common preflight
 
 `POST /api/bot/budget` with `{ issuedAt, signature }`, signing
@@ -30,12 +36,10 @@ when a Hive rejects this mode.
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
 `orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
 
-`signalStrength` is still part of the signed message, so send it (the example
-always sends `100`). Since 2026-09-30 HiveTrade **ignores it for sizing**: every
-Call copies each Member at 100% of their own per-call budget, reduced only by
-their tier cap, what is left in their Hive budget, and the depth available inside
-the Call's price limit. A bot cannot size its Members' copies down by sending a
-lower level.
+`signalStrength` is a fixed compatibility field of the signed message: always
+send `100`, as the example does. HiveTrade ignores its value. Each Member's copy
+is their own per-call budget, reduced only by their tier cap, what is left in
+their Hive budget, and the depth available inside the Call's price limit.
 
 Only an explicit `go: true` with a valid returned `id` authorizes the local Captain
 order. `go: false` means do not fire. A timeout is ambiguous; do not retry with a
@@ -57,11 +61,24 @@ Wallet binding: `POST /api/admin/bot/register-wallet` with
 `hivetrade:bot-register-wallet:<hiveId>:<lowercase-wallet>:<issuedAt>`.
 This route uses the bot signature despite its `/admin` prefix.
 
+## Buy window and retries
+
+Every bot Call has a fixed one-minute buy window. HiveTrade can retry unfilled
+eligible copies about every 15 seconds inside the same price band until the
+window ends. An order with an unknown outcome must be reconciled before another
+attempt for that leg. Its API-owned Kalshi Captain leg can participate. A locally placed
+Polymarket Captain order is not retried by HiveTrade, and a pm-v3 Captain order
+is not re-signed for another round. Bots do not select the six-hour Studio window.
+
+This server behavior does not authorize a second signal submission. The starter
+attempts each market once and stops on uncertain results. Preserve the journal
+and reconcile the venue and Hive before doing anything further.
+
 ## Kalshi
 
 The signal includes `venue: "kalshi"`, `execution: "hivetrade-v1"`, `intent: true`,
 `kalshiTicker`, `kalshiContracts`, `kalshiPriceCents`, plus common identity, side,
-strength, stake, nonce and timestamp fields. The message prefix is
+`signalStrength` (always `100`), stake, nonce and timestamp fields. The message prefix is
 `HiveTrade bot signal kalshi-v2`. No Polymarket order fields are included.
 
 The API currently checks stake against:
@@ -72,7 +89,16 @@ stakeUsd = (contracts * priceCents + feeCents) / 100
 ```
 
 This is the API's signed maximum-cost contract, not a universal venue fee schedule.
-Only supported `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers pass the current API gate.
+This starter uses the standard fee formula above, whole contract counts, and
+only `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers. The API also accepts counts in
+steps of 0.01 and [more reviewed series](https://docs.hivetrade.com/run-a-bot/kalshi#markets-the-bot-api-accepts).
+A whole count keeps the same signed bytes as before; fractional counts use the
+ordinary JavaScript string, such as `contracts:2.72`.
+
+The API still accepts a stake calculated with the standard fee. It also accepts
+a market-specific fee allowance when it matches the multiplier the API reads
+for that market as the intent arrives. If that schedule changed, the intent can
+be declined. The starter does not implement market-specific fee sizing.
 
 HiveTrade owns execution through the operator's connected credential. The runner
 never holds that credential, places a second order, or posts a fill report. An

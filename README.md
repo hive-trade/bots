@@ -9,14 +9,57 @@ participants' own venue accounts. Trading fees apply.
 
 ## Paste this into your agent
 
+New to this? Use an AI agent that can run commands on your computer (Claude Code,
+Codex, Cursor). Step-by-step for beginners: https://docs.hivetrade.com/run-a-bot/one-prompt
+
 ```text
-Help me build my own bot using https://github.com/hive-trade/bots.
-Read README.md and AGENTS.md, then ask about my venue, bot name, exact market,
-strategy idea, spending limit, and where it should run. Use the example as
-integration scaffolding and implement my idea in strategy.mjs. Keep secrets local
-and out of chat. Run the tests and show me a dry run before enabling real trades.
-Explain what is ready and which account setup steps I must complete myself.
+Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
+I'm new to this, so explain each step in plain words.
+1. Clone the repository into a new folder, then read README.md and AGENTS.md.
+2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my strategy
+   idea in plain words, the most it may spend per Call, and whether it should
+   run on this computer or on a server.
+3. Create the bot's signing key. Never show me the private key or put it in chat.
+4. Turn my idea into the bot's rule, run the tests, and show me a dry run.
+5. Give me a pre-filled "Create a bot Hive" link. I will check the signing
+   address and press Create myself.
+6. Find my new Hive, then tell me exactly which steps I still have to do myself.
+Never turn on real trading unless I clearly ask you to.
 ```
+
+Using Claude Code? Install the plugin below and ask it to "set up my HiveTrade bot".
+
+## Install as a Claude Code plugin
+
+```text
+/plugin marketplace add hive-trade/bots
+/plugin install hivetrade-bot@hivetrade
+```
+
+The plugin adds the guided setup skill and a local MCP server (`hivetrade-bot`)
+that works on the bot in your current project folder. Clone this repository there
+first (step 1). On the first session the plugin installs its dependencies, which
+can take about a minute; if the server shows as failed in `/mcp`, reconnect it.
+The server never returns your private key, never posts a Call, and has no way to
+enable live trading, move funds or read an account credential.
+
+**Other MCP clients:** run `node mcp/server.mjs` from your clone (after `npm ci`)
+as a stdio server. It uses the current directory, or `HIVETRADE_BOT_DIR` if set.
+In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/server.mjs`.
+
+## How setup works
+
+1. **Agent:** creates the bot's signing key on your computer and shows only its
+   public address.
+2. **Agent:** writes your strategy, runs the tests and a dry run.
+3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
+4. **You:** open it, check the signing address, and press **Create bot Hive**.
+5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
+6. **You:** connect your Kalshi API key and consent, or fund the bot's Polymarket
+   deposit wallet.
+7. **You:** turn on live trading, only when you decide to.
+
+Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
 
 ## What you get
 
@@ -53,10 +96,19 @@ files, or credentials. The example needs no access to HiveTrade's private reposi
 
 ## 2. Register the Hive
 
-Sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new), choose the venue,
-name the Hive and register the **public signing address**. Set `BOT_HIVE_ID` in
-`.env`. Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
-The platform's legacy daily-budget field is not an enforced daily spending limit.
+Only you can create the Hive, in your own signed-in browser. Your agent builds a
+pre-filled link (MCP tool `prepare_registration`) and never submits it. Open it,
+check that the **signing address** is exactly the one your agent showed you, tick
+the Captain agreement and press **Create bot Hive**. The agent then reads the Hive
+ID back (`check_registration`) or, if that lookup is not available yet, asks you
+for the ID the page showed (`set_hive_id`). See [agent setup](docs/agent-setup.md).
+
+Manual fallback: sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new),
+choose the venue, name the Hive, enter the **public signing address**, and set
+`BOT_HIVE_ID` in `.env` yourself.
+
+Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
+The legacy daily-budget field is not an enforced daily spending limit.
 
 **Polymarket execution mode.** This starter supports self-managed Hives: it
 sends an intent, waits for `go: true`, places its own capped order and reports
@@ -69,8 +121,7 @@ place a local fallback order. Kalshi v2 remains API-owned execution.
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
-bot's stake does not set it, and there is no signal-strength setting any more
-(`SIGNAL_STRENGTH` is ignored if you still have it).
+bot's stake does not set it.
 
 Production uses `https://api.hivetrade.com`; a Hive registered on dev uses
 `https://api-dev.hivetrade.com`. Never mix environments. An API rejection is a
@@ -81,13 +132,18 @@ failed preflight, not permission to bypass a restriction.
 ### Kalshi
 
 1. Set `VENUE=kalshi`.
-2. Have an eligible, funded Kalshi account. Connect its trade-only credential in
-   HiveTrade Settings and complete the required execution consent.
+2. Have an eligible, funded Kalshi account. Connect your Kalshi API key in
+   HiveTrade Settings and complete the required execution consent. The venue key
+   needs trade and internal-transfer permissions; it cannot withdraw.
 3. Choose an exact currently open `KXBTC15M`, `KXETH15M`, or `KXSOL15M` ticker.
-   These are the series currently accepted by HiveTrade's bot API; arbitrary
-   sports, politics, and other Kalshi tickers are not supported by this integration.
-4. Set `KALSHI_TICKER` and `KALSHI_CONTRACTS` (one whole contract initially).
-   Maximum stake includes the API's fee allowance and must fit both spending caps.
+   These are the three series accepted by this starter. HiveTrade's API supports
+   [more reviewed series](https://docs.hivetrade.com/run-a-bot/kalshi#markets-the-bot-api-accepts),
+   but this runner does not implement them.
+4. Set `KALSHI_TICKER` to that ticker and `KALSHI_CONTRACTS` to a positive whole
+   contract count.
+   The API also accepts hundredths of a contract; this starter still requires
+   whole counts. Maximum stake includes the API's standard fee allowance and
+   must fit both spending caps.
 
 Only the platform signing key goes in `.env`. HiveTrade submits the Captain order;
 do not add a second local Kalshi order or a Polymarket-style fill report.
@@ -117,8 +173,11 @@ Prices are decimal probabilities: `0.40` means 40 cents.
 
 To try the illustrative rule, set `EXAMPLE_SIDE` and `EXAMPLE_MAX_PRICE`. Without
 both, it skips or rejects configuration. This rule only demonstrates a price
-limit: it has no predictive edge. Match any real data source to the market's
-resolution rules. See [example ideas](strategy-playbook.md).
+limit: it has no predictive edge. Replace it with the rule you describe before
+live operation. The runner does not detect whether the example was replaced:
+configured example settings can place orders when live trading is enabled.
+Match any real data source to the market's resolution rules. See
+[example ideas](strategy-playbook.md).
 
 Keep `BOT_LIVE_TRADING_ENABLED=false`, then run:
 
@@ -139,7 +198,10 @@ Call together before considering the integration verified.
 
 A successful API response alone is not proof of a fill. An uncertain result stops
 the runner and leaves a journal entry for reconciliation. There are no automatic
-order retries. See [recovery](docs/recovery.md) before restarting after a failure.
+submission or local-order retries in this runner. HiveTrade can continue filling
+eligible copies within a fixed one-minute buy window; this is separate from
+resubmitting the Call. See [the protocol](docs/protocol.md#buy-window-and-retries)
+and [recovery](docs/recovery.md) before restarting after a failure.
 
 ## Hosting and extending
 
@@ -167,13 +229,17 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 
 ## Documentation and support
 
-- [Public setup docs](https://hivetrade-docs.vercel.app/run-a-bot/custom)
+- [Public setup docs](https://docs.hivetrade.com/run-a-bot/custom)
+- [HiveTrade docs: set up with your AI agent](https://docs.hivetrade.com/run-a-bot/agent)
+- [Set up with an AI agent](docs/agent-setup.md)
 - [Wire contract](docs/protocol.md)
 - [Recovery and verification](docs/recovery.md)
 
-Compatibility checked against HiveTrade's current API contract on 2026-09-15.
-Offline tests and dry runs do not certify a funded live account. Report an issue
-with redacted configuration and an error stage; never attach keys or full SDK logs.
+Documentation compatibility reviewed on 2026-10-22 against the public starter
+at `9c46495` and HiveTrade's current API source. The limits above describe that
+starter. Source review, offline tests and dry runs do not certify a deployment
+or funded live account. Report an issue with redacted configuration and an error
+stage; never attach keys or full SDK logs.
 
 ### Let an AI agent set up Railway hosting
 
