@@ -110,6 +110,14 @@ choose the venue, name the Hive, enter the **public signing address**, and set
 Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
 The legacy daily-budget field is not an enforced daily spending limit.
 
+**Polymarket execution mode.** This starter supports self-managed Hives: it
+sends an intent, waits for `go: true`, places its own capped order and reports
+the actual fill. It does not implement the newer `pm-v3` relay mode, mode
+discovery or relay credential registration. Confirm the Hive's execution mode
+before enabling live trading. If the API refuses with
+`PM_CAPTAIN_EXECUTED_BY_HIVETRADE`, stop and use a compatible client; never
+place a local fallback order. Kalshi v2 remains API-owned execution.
+
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
@@ -125,12 +133,17 @@ failed preflight, not permission to bypass a restriction.
 
 1. Set `VENUE=kalshi`.
 2. Have an eligible, funded Kalshi account. Connect your Kalshi API key in
-   HiveTrade Settings and complete the required execution consent.
+   HiveTrade Settings and complete the required execution consent. The venue key
+   needs trade and internal-transfer permissions; it cannot withdraw.
 3. Choose an exact currently open `KXBTC15M`, `KXETH15M`, or `KXSOL15M` ticker.
-   These are the series currently accepted by HiveTrade's bot API; arbitrary
-   sports, politics, and other Kalshi tickers are not supported by this integration.
-4. Set `KALSHI_TICKER` and `KALSHI_CONTRACTS` (one whole contract initially).
-   Maximum stake includes the API's fee allowance and must fit both spending caps.
+   These are the three series accepted by this starter. HiveTrade's API supports
+   [more reviewed series](https://docs.hivetrade.com/run-a-bot/kalshi#markets-the-bot-api-accepts),
+   but this runner does not implement them.
+4. Set `KALSHI_TICKER` to that ticker and `KALSHI_CONTRACTS` to a positive whole
+   contract count.
+   The API also accepts hundredths of a contract; this starter still requires
+   whole counts. Maximum stake includes the API's standard fee allowance and
+   must fit both spending caps.
 
 Only the platform signing key goes in `.env`. HiveTrade submits the Captain order;
 do not add a second local Kalshi order or a Polymarket-style fill report.
@@ -160,8 +173,11 @@ Prices are decimal probabilities: `0.40` means 40 cents.
 
 To try the illustrative rule, set `EXAMPLE_SIDE` and `EXAMPLE_MAX_PRICE`. Without
 both, it skips or rejects configuration. This rule only demonstrates a price
-limit: it has no predictive edge. Match any real data source to the market's
-resolution rules. See [example ideas](strategy-playbook.md).
+limit: it has no predictive edge. Replace it with the rule you describe before
+live operation. The runner does not detect whether the example was replaced:
+configured example settings can place orders when live trading is enabled.
+Match any real data source to the market's resolution rules. See
+[example ideas](strategy-playbook.md).
 
 Keep `BOT_LIVE_TRADING_ENABLED=false`, then run:
 
@@ -182,7 +198,10 @@ Call together before considering the integration verified.
 
 A successful API response alone is not proof of a fill. An uncertain result stops
 the runner and leaves a journal entry for reconciliation. There are no automatic
-order retries. See [recovery](docs/recovery.md) before restarting after a failure.
+submission or local-order retries in this runner. HiveTrade can continue filling
+eligible copies within a fixed one-minute buy window; this is separate from
+resubmitting the Call. See [the protocol](docs/protocol.md#buy-window-and-retries)
+and [recovery](docs/recovery.md) before restarting after a failure.
 
 ## Hosting and extending
 
@@ -210,15 +229,17 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 
 ## Documentation and support
 
-- [Public setup docs](https://hivetrade-docs.vercel.app/run-a-bot/custom)
+- [Public setup docs](https://docs.hivetrade.com/run-a-bot/custom)
 - [HiveTrade docs: set up with your AI agent](https://docs.hivetrade.com/run-a-bot/agent)
 - [Set up with an AI agent](docs/agent-setup.md)
 - [Wire contract](docs/protocol.md)
 - [Recovery and verification](docs/recovery.md)
 
-Compatibility checked against HiveTrade's current API contract on 2026-09-15.
-Offline tests and dry runs do not certify a funded live account. Report an issue
-with redacted configuration and an error stage; never attach keys or full SDK logs.
+Documentation compatibility reviewed on 2026-10-22 against the public starter
+at `9c46495` and HiveTrade's current API source. The limits above describe that
+starter. Source review, offline tests and dry runs do not certify a deployment
+or funded live account. Report an issue with redacted configuration and an error
+stage; never attach keys or full SDK logs.
 
 ### Let an AI agent set up Railway hosting
 

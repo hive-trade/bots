@@ -45,7 +45,9 @@ same server, see [Other MCP clients](#other-mcp-clients).
    permissions `0600` and returns only the public signing address. Keep a private
    backup of `.env`.
 4. **Strategy.** The agent calls `list_strategies`, writes your rule in
-   `strategy.mjs`, adds tests, and sets the market in `.env`.
+   `strategy.mjs`, adds tests, and sets the market in `.env`. The starter's
+   placeholder is executable when configured; no runtime check requires its
+   replacement. Replace it before enabling live trading.
 5. **Dry run.** The agent calls `dry_run`. Live trading is forced off and the run
    gets no key. Before registration it uses a placeholder Hive ID.
 6. **Registration link.** The agent calls `prepare_registration` with the name,
@@ -65,7 +67,11 @@ same server, see [Other MCP clients](#other-mcp-clients).
 10. **Venue setup (you).** Kalshi: connect your Kalshi API key in HiveTrade
     Settings and give the execution consent. Polymarket: deploy and fund the bot's
     own deposit wallet, set `POLYMARKET_DEPOSIT_WALLET`, then run
-    `npm run bind-wallet`. The agent runs `dry_run` again.
+    `npm run bind-wallet`. This starter supports self-managed Polymarket Hives;
+    it does not implement pm-v3 relay mode. A `PM_CAPTAIN_EXECUTED_BY_HIVETRADE`
+    refusal means stop and use a compatible client, never a local fallback order.
+    Kalshi here is limited to whole counts and the three crypto series in the
+    [README](../README.md#kalshi). The agent runs `dry_run` again.
 11. **Hosting (optional).** The agent calls `get_deploy_guide` and follows the
     `hivetrade-deploy` skill. The hosted job is a scheduled preview with live
     trading off.
@@ -120,8 +126,10 @@ Responses:
 | 404 without that code | | This API does not have the lookup yet. Ask the person for the Hive ID. |
 | 401 | | The signature or time was rejected. Check the computer clock. |
 
-On production, the lookup arrives with HiveTrade's next release. Until then,
-`check_registration` reports it as unavailable and the agent uses `set_hive_id`.
+Lookup availability depends on the API deployment. If `check_registration`
+reports the endpoint as unavailable, use `set_hive_id` with the ID the person
+received after creating the Hive. A `BOT_NOT_REGISTERED` response means the
+lookup exists but found no Hive for this signer.
 
 The other signed endpoints are in the [wire contract](protocol.md).
 
@@ -158,9 +166,8 @@ exact signing address each time, by pressing Create yourself.
 - **The server shows as failed in `/mcp` on the first session.** The plugin
   installs its dependencies when the session starts, which can take about a
   minute. Reconnect `hivetrade-bot` in `/mcp` once it is done.
-- **"Lookup unavailable".** The API does not have the signed lookup yet (production
-  until HiveTrade's next release). Give the agent the Hive ID the page showed after
-  Create; it calls `set_hive_id`.
+- **"Lookup unavailable".** This API deployment did not provide the signed lookup.
+  Give the agent the Hive ID the page showed after Create; it calls `set_hive_id`.
 - **`BOT_NOT_REGISTERED` after you pressed Create.** The signing address on the
   form was changed, or the Hive was created on the other environment. Compare the
   address with `get_setup_status` and check which site you used.

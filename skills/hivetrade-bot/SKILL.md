@@ -32,8 +32,10 @@ on when it passes. If a check fails, explain what is missing in plain words.
 
 Ask, reusing anything already said:
 1. Venue: **Kalshi** (shorter: HiveTrade executes with the user's connected Kalshi
-   key; only `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers today) or **Polymarket**
-   (the bot needs its own deposit wallet, deployed and funded).
+   key; this starter accepts only `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers and
+   whole contract counts) or **Polymarket** (this starter requires self-managed
+   execution and the bot's own deposit wallet, deployed and funded). The API's
+   wider series and fractional sizing are not implemented by this runner.
 2. Bot name (3 to 40 characters), a one-line description, and a category.
 3. The strategy idea in plain language, and the exact market.
 4. Per-call cap in USD (1 to 100) for the Hive, and `MAX_STAKE_USD` locally.
@@ -59,6 +61,8 @@ Run `list_strategies` (or read `strategy-playbook.md`). Put the user's rule in
 `strategy.mjs`: return `null` to skip or `{ side: "yes" | "no", maxPrice }`. Keep
 execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`) and
 stake settings in `.env` by editing only those lines, without printing the file.
+Replace the placeholder before live operation. It is executable when configured;
+there is no runtime check requiring its replacement.
 
 **Check:** add tests for the rule (including stale or missing data); `npm run check`
 and `npm test` pass.
@@ -98,11 +102,16 @@ with the expected name and venue.
 ## 7. Venue setup (the user does this)
 
 - **Kalshi:** the user connects their Kalshi API key in HiveTrade Settings and
-  completes the execution consent. Nothing Kalshi-related goes in `.env` except
-  the ticker and contracts.
+  completes the execution consent. The venue credential needs trade and
+  internal-transfer permissions; it cannot withdraw. No Kalshi venue credential
+  goes in `.env`; keep only the local signing key and public configuration there.
 - **Polymarket:** the user deploys and funds the bot's **own** deposit wallet
   with Polymarket's supported tools, then sets `POLYMARKET_DEPOSIT_WALLET` (the
   deposit contract, not the signing address) and runs `npm run bind-wallet`.
+  Confirm self-managed execution before live operation. This kit does not
+  implement pm-v3 relay mode, mode discovery or relay credential registration.
+  `PM_CAPTAIN_EXECUTED_BY_HIVETRADE` means stop and use a compatible client;
+  never place a local fallback order or change mode to bypass the refusal.
 
 **Check:** Kalshi - the user confirms the key and consent are done. Polymarket -
 `get_setup_status` shows `polymarketDepositWallet` and `bind-wallet` succeeded.
@@ -123,4 +132,7 @@ unverified. Live trading starts only when the user decides and sets
 `BOT_LIVE_TRADING_ENABLED=true` themselves (on a host, they also set
 `BOT_PRIVATE_KEY` in its secret settings themselves). Do not do it for them, and
 never as a test. After a live run, check the venue receipt and the Hive Call
-together; see [recovery](../../docs/recovery.md) for anything uncertain.
+together; see [recovery](../../docs/recovery.md) for anything uncertain. HiveTrade
+can retry eligible copies and its Kalshi Captain leg during the fixed one-minute
+buy window. This runner does not retry submissions or its local Polymarket order;
+never send a new signal to imitate the server's retries.

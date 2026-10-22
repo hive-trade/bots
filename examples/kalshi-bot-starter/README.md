@@ -26,9 +26,12 @@ account; the example does not hold an RSA key, submit a second venue order or
 report a Polymarket-style fill.
 
 The dry run reads public market data, checks once and exits. It is not a demo
-exchange and does not place orders. Only `KXBTC15M`, `KXETH15M`, and `KXSOL15M`
-series currently pass the bot API gate. The generic price-limit example is not
-a forecast; implement your own idea in root `strategy.mjs`.
+exchange and does not place orders. This starter accepts only `KXBTC15M`,
+`KXETH15M`, and `KXSOL15M` tickers and whole contract counts. HiveTrade's API
+supports more reviewed series and hundredths of a contract; those extensions
+are not implemented here. The generic price-limit example is not a forecast;
+implement your own idea in root `strategy.mjs`. There is no runtime check that
+the example was replaced before live trading.
 
 Keep the journal on persistent storage. See [recovery](../../docs/recovery.md)
 for any uncertain response; never delete state to force another order.
