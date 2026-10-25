@@ -49,8 +49,9 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 
 ## How setup works
 
-1. **Agent:** creates the bot's signing key on your computer and shows only its
-   public address.
+1. **You:** run `npm run setup` in your own terminal, in the bot folder. It saves
+   the bot's signing key in `.env` and prints only its public address. Give that
+   address to your agent. Your agent never runs this command and never opens `.env`.
 2. **Agent:** writes your strategy, runs the tests and a dry run.
 3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
 4. **You:** open it, check the signing address, and press **Create bot Hive**.
@@ -82,17 +83,34 @@ the venue's supported tools. Kalshi handles settlement in your Kalshi account.
 
 Requires Node.js 24+ and npm. Clone the **whole repository**, not a single script:
 
+Your agent can do the first part:
+
 ```bash
 git clone https://github.com/hive-trade/bots.git my-bot
 cd my-bot
 npm ci
-npm run setup
 npm run check
 npm test
 ```
 
-`setup` creates `.env` with permissions `0600` and prints only the public address.
-It refuses to overwrite an existing `.env`. Keep a private backup of the identity;
+**You** create the signing key, in your own terminal, in that folder:
+
+```bash
+npm run setup
+```
+
+It prints two lines:
+
+```text
+Your bot's public address: 0x...
+Give this address to your agent. Your private key was saved in .env; never share it.
+```
+
+`setup` creates `.env` with permissions `0600`, never shows the key and refuses to
+overwrite an existing `.env`. Your agent never runs `setup` and never reads, prints
+or opens `.env`. It changes public settings with `npm run settings -- KEY=value`
+(or the MCP tool `update_settings`) and views them with `npm run settings`, which
+hides the key. Keep a private backup of the identity;
 losing it may lose access to the associated wallet. Never commit `.env`, journal
 files, or credentials. The example needs no access to HiveTrade's private repository.
 

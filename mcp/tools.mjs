@@ -2,11 +2,14 @@
 // their .env. Deliberately absent: posting a Call, enabling live trading,
 // funding, and any account credential. No tool output ever contains the
 // private key or any other .env value except the few public fields below.
+// Tools never create the key either: the person runs npm run setup in their
+// own terminal. .env is read only through env-file.mjs helpers that leave the
+// key out (readPublicSettings) or wrap it in a signer that exposes only the
+// public address (botSigner).
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { createIdentity } from '../lib/setup.mjs';
-import { readEnv, updateEnv, envPath } from './env-file.mjs';
+import { readPublicSettings, botSigner, updateEnv, envPath, isSettable, SETTABLE_KEYS } from './env-file.mjs';
 import { loadDeps } from './deps.mjs';
 
 export const ENVIRONMENTS = {
@@ -39,17 +42,13 @@ function requireKit(dir) {
     throw new Error(`${dir} is not a copy of the bot kit. Clone https://github.com/hive-trade/bots there (or set HIVETRADE_BOT_DIR), run npm ci, then try again.`);
   }
 }
-function signer(env, deps) {
-  // Missing dependencies are not a bad key: say so, so nobody replaces a good identity.
-  if (typeof deps?.privateKeyToAccount !== 'function') throw new Error('The kit\'s dependencies are not loaded, so the signing key could not be checked. Run npm ci in the bot folder. The key in .env was not changed.');
-  const key = env?.BOT_PRIVATE_KEY ?? '';
-  if (!/^0x[0-9a-fA-F]{64}$/.test(key)) return null;
-  try { return deps.privateKeyToAccount(key); } catch { return null; }
-}
+const SETUP_COMMAND = 'npm run setup';
+const NO_ENV = `No .env yet. The person creates the signing key: ask them to run \`${SETUP_COMMAND}\` in their own terminal, in the bot folder, and to give you the public address it prints. Do not run it yourself.`;
 function needEnvAndSigner(dir, deps) {
-  const env = readEnv(dir);
-  if (!env) throw new Error('No .env yet. Run create_signing_key (or npm run setup) first.');
-  const account = signer(env, deps);
+  const env = readPublicSettings(dir);
+  if (!env) throw new Error(NO_ENV);
+  // Missing dependencies are reported as such by botSigner, never as a bad key.
+  const account = botSigner(dir, deps?.privateKeyToAccount);
   if (!account) throw new Error('BOT_PRIVATE_KEY in .env is empty or not a 0x-prefixed 64-character hex key. Restore .env from your backup. Only if the key is truly lost, create a new identity in a new folder. Never paste a key in chat.');
   return { env, account };
 }
@@ -79,11 +78,11 @@ async function readJson(response) {
 export function setupStatus({ dir, deps }) {
   const kit = existsSync(join(dir, 'bot.mjs'));
   const status = { botDir: dir, kitPresent: kit, dependenciesInstalled: existsSync(join(dir, 'node_modules', 'viem')), envFile: false };
-  const env = readEnv(dir);
+  const env = readPublicSettings(dir);
   if (env) {
     status.envFile = true;
     status.envFilePrivate = (statSync(envPath(dir)).mode & 0o077) === 0;
-    const account = deps ? signer(env, deps) : null;
+    const account = deps ? botSigner(dir, deps.privateKeyToAccount) : null;
     status.signingAddress = account ? account.address : null;
     if (!deps) status.keyProblem = 'Dependencies are not installed, so the key was not checked. Run npm ci.';
     else if (!account) status.keyProblem = 'BOT_PRIVATE_KEY is missing or malformed';
@@ -100,8 +99,8 @@ export function setupStatus({ dir, deps }) {
   }
   status.nextStep = !kit ? 'Clone https://github.com/hive-trade/bots into this folder and run npm ci.'
     : !status.dependenciesInstalled ? 'Run npm ci.'
-    : !env ? 'Create the signing identity (create_signing_key or npm run setup).'
-    : !status.signingAddress ? 'Fix the signing identity in .env locally; never paste a key in chat.'
+    : !env ? `The person creates the signing key: they run \`${SETUP_COMMAND}\` in their own terminal in this folder and give you the public address. Do not run it yourself.`
+    : !status.signingAddress ? 'The signing key in .env is missing or malformed. The person restores .env from their backup; never paste a key in chat, and never open .env.'
     : !status.hiveId ? 'Create the Hive: prepare_registration, then check_registration once the person pressed Create.'
     : env.VENUE === 'polymarket' && !status.polymarketDepositWallet ? 'Polymarket: HiveTrade created the bot\'s deposit wallet with the Hive. Run check_registration to save its address to .env; if it reports none, the Hive page shows it. Then the person sends funds to that address.'
     : !status.market ? 'Choose the exact market (KALSHI_TICKER or MARKET_SLUG) and implement the strategy, then dry_run.'
@@ -109,13 +108,36 @@ export function setupStatus({ dir, deps }) {
   return status;
 }
 
-export function createSigningKey({ dir, deps }) {
+// The person creates the key themselves (owner decision 2026-10-25). This tool
+// only says how; it creates nothing and runs nothing.
+export function signingKeyCommand({ dir, deps }) {
   requireKit(dir);
-  if (existsSync(envPath(dir))) throw new Error('.env already exists; refusing to overwrite it. Use get_setup_status to see its public address.');
-  const address = createIdentity({ dir, template: readFileSync(join(dir, '.env.example'), 'utf8'),
-    generatePrivateKey: deps.generatePrivateKey, privateKeyToAccount: deps.privateKeyToAccount });
-  return { signingAddress: address, envFile: envPath(dir),
-    note: 'The private key is saved only in .env (mode 0600) and was not shown. Ask the person to keep a private backup of that file. Never commit it.' };
+  if (existsSync(envPath(dir))) {
+    const signer = deps ? botSigner(dir, deps.privateKeyToAccount) : null;
+    return { done: true, signingAddress: signer?.address ?? null,
+      note: signer ? 'The signing key already exists. This is its public address; check it matches the one the person gave you.' : '.env exists but its key could not be read. The person restores .env from their backup.' };
+  }
+  return { done: false, folder: dir, command: SETUP_COMMAND,
+    tellThePerson: [
+      `Open a terminal on your computer, go to the bot folder (${dir}) and run: ${SETUP_COMMAND}`,
+      'It prints one line with your bot\'s public address. Copy that address and give it to me.',
+      'Your private key is saved in .env on your computer. Never share it, and keep a private backup of .env.',
+    ],
+    agentRules: 'Do not run the command yourself. Never read, print, grep or open .env. Use get_setup_status to confirm the address once the person ran it.' };
+}
+export function updateSettings({ dir }, args = {}) {
+  if (!readPublicSettings(dir)) throw new Error(NO_ENV);
+  const settings = args.settings;
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings) || Object.keys(settings).length === 0) throw new Error('settings must be an object such as { "MARKET_SLUG": "..." }');
+  const updates = {};
+  for (const [key, value] of Object.entries(settings)) {
+    if (!isSettable(key)) throw new Error(`${key} cannot be changed with this tool. Settable: ${SETTABLE_KEYS.join(', ')}. The live-trading switch is the person's own decision.`);
+    if (typeof value !== 'string' && typeof value !== 'number') throw new Error(`${key} must be text or a number`);
+    if (String(value).length > 250) throw new Error(`${key} is too long`);
+    updates[key] = String(value);
+  }
+  updateEnv(dir, updates);
+  return { wroteToEnv: Object.keys(updates) };
 }
 
 export function prepareRegistration({ dir, deps }, args = {}) {
@@ -208,7 +230,7 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
 
 export function setHiveId({ dir }, args = {}) {
   const hiveId = hiveIdOf(args.hiveId);
-  if (!readEnv(dir)) throw new Error('No .env yet. Create the signing identity first.');
+  if (!readPublicSettings(dir)) throw new Error(NO_ENV);
   updateEnv(dir, { BOT_HIVE_ID: String(hiveId) });
   return { hiveId, wroteToEnv: ['BOT_HIVE_ID'] };
 }
@@ -298,13 +320,13 @@ function tail(text, lines = 40) {
 }
 export function dryRun({ dir, env = process.env, node = process.execPath, timeoutMs = 120000 }) {
   requireKit(dir);
-  if (!existsSync(envPath(dir))) throw new Error('No .env yet. Create the signing identity first.');
+  if (!existsSync(envPath(dir))) throw new Error(NO_ENV);
   // Values set here win over .env (node --env-file never overrides the
   // environment), so the run is forced to preview mode without a key.
   const childEnv = { ...env, BOT_LIVE_TRADING_ENABLED: 'false', BOT_PRIVATE_KEY: '' };
   delete childEnv.NODE_OPTIONS;
   // A dry run needs no Hive ID (lib/config.mjs), so it works before registration.
-  const hiveIdSet = Boolean(readEnv(dir)?.BOT_HIVE_ID || env.BOT_HIVE_ID);
+  const hiveIdSet = Boolean(readPublicSettings(dir)?.BOT_HIVE_ID || env.BOT_HIVE_ID);
   return new Promise(done => {
     const child = spawn(node, ['--env-file=.env', 'bot.mjs'], { cwd: dir, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', timedOut = false;
@@ -327,8 +349,11 @@ const environmentProp = { type: 'string', enum: ['prod', 'dev'], description: 'H
 export const TOOLS = [
   { name: 'get_setup_status', description: 'Which setup steps are done for the bot in this folder: kit, dependencies, signing identity (public address only), Hive ID, venue, Polymarket deposit wallet, market, live trading flag. Never returns secrets.', inputSchema: object(),
     run: ctx => setupStatus(ctx) },
-  { name: 'create_signing_key', description: 'Create the bot\'s signing identity in .env (mode 0600) and return only its public address. Refuses if .env already exists.', inputSchema: object(),
-    run: ctx => createSigningKey(ctx) },
+  { name: 'get_signing_key_command', description: 'The command the PERSON runs in their own terminal to create the bot\'s signing key (npm run setup), and what to tell them. Creates nothing. Never run that command yourself. If the key exists, returns only its public address.', inputSchema: object(),
+    run: ctx => signingKeyCommand(ctx) },
+  { name: 'update_settings', description: 'Change public bot settings in .env (market, stake, venue, example or STRATEGY_* values) so you never open .env. Refuses the key, the live-trading switch, the Hive ID and the API.',
+    inputSchema: object({ settings: { type: 'object', description: `Keys: ${SETTABLE_KEYS.join(', ')}`, additionalProperties: { type: ['string', 'number'] } } }, ['settings']),
+    run: (ctx, args) => updateSettings(ctx, args) },
   { name: 'prepare_registration', description: 'Build a pre-filled "Create a bot Hive" link for this bot\'s signing address. The person opens it, checks the address and presses Create. Submits nothing.',
     inputSchema: object({ name: { type: 'string', description: '3 to 40 characters' }, bio: { type: 'string', description: 'Up to 500 characters' },
       category: { type: 'string', enum: CATEGORIES }, venue: { type: 'string', enum: ['polymarket', 'kalshi'] },

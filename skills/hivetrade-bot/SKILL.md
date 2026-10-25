@@ -12,13 +12,18 @@ the user's own. HiveTrade is signal-sharing software: trades execute in each
 person's own Polymarket or Kalshi account.
 
 **Tools.** When the `hivetrade-bot` MCP server is connected, use its tools
-(`get_setup_status`, `create_signing_key`, `prepare_registration`,
-`check_registration`, `set_hive_id`, `get_bot_status`, `list_strategies`,
-`get_deploy_guide`, `dry_run`). Otherwise use the npm scripts named in each step.
+(`get_setup_status`, `get_signing_key_command`, `update_settings`,
+`prepare_registration`, `check_registration`, `set_hive_id`, `get_bot_status`,
+`list_strategies`, `get_deploy_guide`, `dry_run`). Otherwise use the npm scripts named in each step.
 
 **Hard rules, every step:**
-- Never read `.env` into the conversation or tool output, never print a private
-  key, and never ask the user for one. Show only the public signing address.
+- **Never read, cat, grep, open or print `.env`**, not even one line. Change
+  public settings with `update_settings` (or `npm run settings -- KEY=value`) and
+  view them with `get_setup_status` (or `npm run settings`, which hides the key).
+- **Never create the signing key yourself and never run `npm run setup`.** The
+  user runs it in their own terminal and gives you the public address.
+- Never print a private key and never ask the user for one. Show only the public
+  signing address.
 - Never submit the Hive registration, connect a venue account, fund a wallet, or
   set `BOT_LIVE_TRADING_ENABLED=true` for the user. Those are their actions.
 - Tests, dry runs and "set it up" requests never authorize a real-money trade.
@@ -47,11 +52,14 @@ and the user agrees.
 
 The project folder must be a clone of `https://github.com/hive-trade/bots`
 (Node 24+): `git clone https://github.com/hive-trade/bots.git my-bot && cd my-bot && npm ci`.
-Then `create_signing_key` (or `npm run setup`). It writes `.env` at mode 0600 and
-refuses to overwrite one. Tell the user to keep a private backup of `.env`.
+Then ask the user to create the signing key themselves (`get_signing_key_command`
+gives the exact words): open a terminal, go to the bot folder, run `npm run setup`,
+and give you the public address it prints. Do not run it for them. It writes
+`.env` at mode 0600, never shows the key, and refuses to overwrite one. Tell the
+user to keep a private backup of `.env`.
 
-**Check:** `get_setup_status` shows `envFile: true`, a `signingAddress`, and
-`envFilePrivate: true`. Show the user the address only.
+**Check:** `get_setup_status` shows `envFile: true`, `envFilePrivate: true`, and a
+`signingAddress` equal to the address the user gave you.
 
 ## 3. Implement the strategy
 
@@ -62,7 +70,9 @@ a rule that says "below 20 cents", implement exactly what the user said and tell
 them how the limit reads. `reasons` is a list of short text lines explaining the
 decision in the user's terms; the dry run prints them as `TRACE` lines (this is
 the "decision trace"). Keep execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`) and
-stake settings in `.env` by editing only those lines, without printing the file.
+stake settings with `update_settings` (or `npm run settings -- KEY=value`). Put
+any value the rule needs in a `STRATEGY_*` setting or in `strategy.mjs`. Never
+open `.env`.
 
 **Check:** replace `test/example-strategy.test.mjs` (the example rule's tests)
 with tests for the user's rule, including stale or missing data. Leave the other

@@ -12,7 +12,12 @@ spending limit and local/hosted preference. Explain the example's limitations.
 Only supported Kalshi directional series work today. Do not invent general venue
 support, automatic withdrawals, redemption, profitability or daily platform caps.
 
-1. Use Node 24+, npm ci, npm run setup. Never read .env into tool output or chat.
+1. Use Node 24+ and npm ci. The PERSON creates the signing key: tell them to run
+   `npm run setup` in their own terminal in the bot folder and to give you the
+   public address it prints. Never run that command yourself.
+   **Hard rule: never read, cat, grep, open or print .env**, not even part of it.
+   Change public settings with `npm run settings -- KEY=value` (or MCP
+   `update_settings`) and view them with `npm run settings`, which hides the key.
    Show only the public address. Never upload or commit credentials/state.
 2. Registration: build the pre-filled `/bots/new` link for the local signer
    (MCP `prepare_registration`). The user opens it, checks the signing address,

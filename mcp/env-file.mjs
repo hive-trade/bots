@@ -45,3 +45,32 @@ export function updateEnv(dir, updates) {
   chmodSync(tmp, 0o600);
   renameSync(tmp, file);
 }
+
+// The only ways kit tools see .env. None of them returns the private key:
+// settings come back with BOT_PRIVATE_KEY removed, and the signer is a closure
+// that can sign a message and tell its public address, nothing more.
+const KEY_FORMAT = /^0x[0-9a-fA-F]{64}$/;
+export function readPublicSettings(dir) {
+  const env = readEnv(dir);
+  if (!env) return null;
+  const { BOT_PRIVATE_KEY: key, ...settings } = env;
+  return Object.defineProperty(settings, 'signingKeyPresent', { value: KEY_FORMAT.test(key ?? ''), enumerable: false });
+}
+export function botSigner(dir, privateKeyToAccount) {
+  if (typeof privateKeyToAccount !== 'function') throw new Error('The kit\'s dependencies are not loaded, so the signing key could not be checked. Run npm ci in the bot folder. The key in .env was not changed.');
+  const key = readEnv(dir)?.BOT_PRIVATE_KEY ?? '';
+  if (!KEY_FORMAT.test(key)) return null;
+  let account;
+  try { account = privateKeyToAccount(key); } catch { return null; }
+  return Object.freeze({ address: account.address, signMessage: ({ message }) => account.signMessage({ message }) });
+}
+export function publicSigningAddress(dir, privateKeyToAccount) {
+  return botSigner(dir, privateKeyToAccount)?.address ?? null;
+}
+// Public settings the agent may change for the person, so it never has to
+// open .env. Never the key, the live-trading switch, the Hive ID or the API
+// (those have their own tools or are the person's decision).
+const SETTABLE = new Set(['VENUE', 'MARKET_SLUG', 'STAKE_USD', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS',
+  'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'POLYMARKET_DEPOSIT_WALLET']);
+export function isSettable(key) { return SETTABLE.has(key) || /^STRATEGY_[A-Z0-9_]+$/.test(key); }
+export const SETTABLE_KEYS = [...SETTABLE, 'STRATEGY_*'];

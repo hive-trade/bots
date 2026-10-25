@@ -15,7 +15,7 @@ In Claude Code, install the plugin:
 ```
 
 It bundles two skills (`hivetrade-bot` for setup, `hivetrade-deploy` for Railway
-hosting) and a local MCP server, `hivetrade-bot`, with the nine tools listed
+hosting) and a local MCP server, `hivetrade-bot`, with the ten tools listed
 below. Then ask your agent to "set up my HiveTrade bot". Other agents can use the
 same server, see [Other MCP clients](#other-mcp-clients).
 
@@ -24,7 +24,7 @@ same server, see [Other MCP clients](#other-mcp-clients).
 | Step | Who |
 |---|---|
 | Clone the kit and install dependencies | Agent |
-| Create the bot's signing key (stays in `.env`, only the public address is shown) | Agent |
+| Create the bot's signing key: run `npm run setup` in your own terminal (the key stays in `.env`; it prints only the public address, which you give to the agent) | You |
 | Write your strategy in `strategy.mjs`, with tests | Agent |
 | Run the tests and a dry run | Agent |
 | Prepare the pre-filled "Create a bot Hive" link | Agent |
@@ -40,9 +40,11 @@ same server, see [Other MCP clients](#other-mcp-clients).
 1. **Status.** The agent calls `get_setup_status` to see what is already done.
 2. **Kit.** Your project folder must be a clone of
    `https://github.com/hive-trade/bots` with `npm ci` run (Node.js 24+).
-3. **Signing key.** The agent calls `create_signing_key`. It writes `.env` with
-   permissions `0600` and returns only the public signing address. Keep a private
-   backup of `.env`.
+3. **Signing key (you).** The agent calls `get_signing_key_command` and tells you
+   what to do: open a terminal in the bot folder and run `npm run setup`. It writes
+   `.env` with permissions `0600` and prints only the public signing address. Give
+   that address to the agent. The agent never runs this command and never opens
+   `.env`. Keep a private backup of `.env`.
 4. **Strategy.** The agent calls `list_strategies`, writes your rule in
    `strategy.mjs`, adds tests, and sets the market in `.env`.
 5. **Dry run.** The agent calls `dry_run` (or runs `npm run dry-run`). Live
@@ -83,7 +85,8 @@ Code project folder, else the current directory.
 | Tool | What it does | Inputs | What it never does |
 |---|---|---|---|
 | `get_setup_status` | Reports which steps are done: kit, dependencies, `.env` and whether it is private, public signing address, venue, environment, Hive ID, Polymarket deposit wallet, market, live trading flag, and the next step. | none | Return a key or any other secret. |
-| `create_signing_key` | Creates the signing key in `.env` (mode `0600`) and returns the public address. | none | Overwrite an existing `.env`, or show the key. |
+| `get_signing_key_command` | Returns the command the person runs in their own terminal (`npm run setup`) and what to tell them. If the key exists, returns only its public address. | none | Create a key, run a command, or show the key. |
+| `update_settings` | Changes public settings in `.env`: venue, market, stake, example and `STRATEGY_*` values. | `settings` (object, required) | Write the key, the live-trading switch, the Hive ID or the API. |
 | `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `maxStakeUsd` (1 to 100), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
 | `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`, and for Polymarket the deposit wallet address HiveTrade returns (`POLYMARKET_DEPOSIT_WALLET`, never overwriting a different saved one). | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
 | `set_hive_id` | Writes `BOT_HIVE_ID` to `.env`. For when the automatic lookup is unavailable. | `hiveId` (whole number, 1 or more, required) | Write any other setting. |
@@ -92,7 +95,8 @@ Code project folder, else the current directory.
 | `get_deploy_guide` | Explains hosting on Railway and who handles the key on a server. | none | Deploy anything or upload a key. |
 | `dry_run` | Runs the bot once with live trading forced off and no key, and returns the last lines of its output. Lines that look like a key are hidden. | none | Submit an intent, order or fill report. |
 
-No tool writes `BOT_PRIVATE_KEY`. Any tool output that looks like a private key
+No tool creates or writes `BOT_PRIVATE_KEY`, and tools read `.env` only through
+helpers that leave the key out or expose just the public address. Any tool output that looks like a private key
 is refused rather than returned.
 
 ## Registration protocol
@@ -131,8 +135,9 @@ The other signed endpoints are in the [wire contract](protocol.md).
 
 ## Security model
 
-- The private key is created on your computer and stays in `.env` (mode `0600`).
-  It never appears in tool output or chat. The agent never asks you to paste a key.
+- You create the private key yourself with `npm run setup`; it stays in `.env`
+  (mode `0600`). It never appears in tool output or chat. The agent never runs that
+  command, never opens `.env`, and never asks you to paste a key.
 - The MCP server has no tool to post a Call, turn on live trading, move or add
   funds, or read an account credential.
 - There is no agent account token. Registration needs no HiveTrade login from the

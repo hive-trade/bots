@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import { privateKeyToAccount } from 'viem/accounts';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 test('setup writes secret locally, prints only address and never overwrites existing .env', t => {
@@ -16,8 +17,12 @@ test('setup writes secret locally, prints only address and never overwrites exis
   const secret = contents.match(/BOT_PRIVATE_KEY=(.+)/)[1];
   assert.match(secret, /^0x[0-9a-f]{64}$/);
   assert.ok(!first.stdout.includes(secret)); assert.ok(!first.stderr.includes(secret));
+  const address = privateKeyToAccount(secret).address;
+  assert.equal(first.stdout, `Your bot's public address: ${address}\nGive this address to your agent. Your private key was saved in .env; never share it.\n`);
   assert.equal(statSync(join(dir, '.env')).mode & 0o777, 0o600);
-  assert.notEqual(run().status, 0);
+  const again = run();
+  assert.notEqual(again.status, 0); assert.ok(!again.stderr.includes(secret) && !again.stdout.includes(secret));
+  assert.match(again.stderr, new RegExp(`no new key was made[\\s\\S]*${address}`));
   assert.equal(readFileSync(join(dir, '.env'), 'utf8'), contents);
 });
 // The kit's CLI tests run bot.mjs with test-support/strategy.mjs in place of
@@ -123,4 +128,18 @@ test('kit tests do not depend on the rule in strategy.mjs', t => {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const result = runBot(dir, { VENUE: 'polymarket', BOT_HIVE_ID: '42', EXAMPLE_SIDE: 'no', EXAMPLE_MAX_PRICE: '0.01' });
   assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /"side":"yes"/);
+});
+test('npm run settings shows and changes public settings without ever printing the key', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-settings-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const node = args => spawnSync(process.execPath, args, { cwd: dir, encoding: 'utf8' });
+  assert.equal(node([join(root, 'scripts/setup.mjs')]).status, 0);
+  const secret = readFileSync(join(dir, '.env'), 'utf8').match(/BOT_PRIVATE_KEY=(.+)/)[1];
+  const shown = node([join(root, 'scripts/settings.mjs')]);
+  assert.equal(shown.status, 0, shown.stderr); assert.ok(!shown.stdout.includes(secret.slice(2)));
+  assert.match(shown.stdout, /^BOT_PRIVATE_KEY: set \(hidden\)$/m); assert.match(shown.stdout, /^BOT_LIVE_TRADING_ENABLED=false$/m);
+  assert.equal(node([join(root, 'scripts/settings.mjs'), 'MARKET_SLUG=my-market']).status, 0);
+  assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^MARKET_SLUG=my-market$/m);
+  assert.notEqual(node([join(root, 'scripts/settings.mjs'), 'BOT_LIVE_TRADING_ENABLED=true']).status, 0);
+  assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m);
 });
