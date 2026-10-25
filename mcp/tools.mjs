@@ -58,11 +58,13 @@ function hiveIdOf(value) {
   if (!Number.isSafeInteger(id) || id <= 0 || String(value).trim() !== String(id)) throw new Error('hiveId must be a positive whole number');
   return id;
 }
-// Polymarket live trading for NEW bots is not self-serve yet (owner decision
-// 2026-10-25): HiveTrade will place the Captain leg in the Hive owner's own
-// HiveTrade account, and the bot will only sign Calls. Until that API lands,
-// a new Polymarket bot can be created and dry-run, not traded live.
-const POLYMARKET_NOT_SELF_SERVE = 'Polymarket live trading for new bots is not self-serve yet: new Polymarket bots will trade from the person\'s own HiveTrade account, which HiveTrade is still building. Creating the Hive and dry runs work today. Never tell the person to fund a bot address, sign in to Polymarket as the bot, or import the bot\'s key into a wallet app.';
+// New Polymarket bots trade from the Hive owner's own HiveTrade account (owner
+// decision 2026-10-25): the bot only signs the Call (pm-op-v1) and HiveTrade
+// places the Captain order. The person's own step is in HiveTrade: a total
+// budget for the bot and allowing it to trade. Older bots with their own
+// deposit wallet set POLYMARKET_LEGACY_SELF_MANAGED=true (the person's choice).
+const POLYMARKET_OWNER_STEP = 'New Polymarket bots trade from the person\'s own HiveTrade account: the bot only signs the Call and HiveTrade places the order there. Before live trading the person, in HiveTrade, sets the bot\'s Amount per Call (what each Call stakes) and Total budget and allows the bot to trade (in Studio, or while creating the Hive), with funds in their own HiveTrade account. The bot sends no amount. Never tell the person to fund a bot address, sign in to Polymarket as the bot, or import the bot\'s key into a wallet app.';
+const legacyPolymarket = env => env.POLYMARKET_LEGACY_SELF_MANAGED === 'true';
 async function readJson(response) {
   try { return await response.json(); } catch { return null; }
 }
@@ -83,7 +85,8 @@ export function setupStatus({ dir, deps }) {
     status.environment = environmentForApi(status.apiUrl) ?? 'unknown';
     status.hiveId = env.BOT_HIVE_ID || null;
     if (env.VENUE === 'polymarket') {
-      status.polymarketDepositWallet = ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null;
+      // Older bots only: their own deposit wallet (legacy self-managed path).
+      if (legacyPolymarket(env)) status.polymarketDepositWallet = ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null;
       status.market = env.MARKET_SLUG || null;
     }
     if (env.VENUE === 'kalshi') status.market = env.KALSHI_TICKER || (env.KALSHI_SERIES ? `series ${env.KALSHI_SERIES} (the market open right now)` : null);
@@ -95,7 +98,7 @@ export function setupStatus({ dir, deps }) {
     : !status.signingAddress ? 'The signing key in .env is missing or malformed. The person restores .env from their backup; never paste a key in chat, and never open .env.'
     : !status.hiveId ? 'Create the Hive: prepare_registration, then check_registration once the person pressed Create.'
     : !status.market ? 'Choose the exact market (KALSHI_TICKER or MARKET_SLUG) and implement the strategy, then dry_run.'
-    : env.VENUE === 'polymarket' && !status.polymarketDepositWallet ? `Run the tests and dry_run. ${POLYMARKET_NOT_SELF_SERVE}`
+    : env.VENUE === 'polymarket' && !legacyPolymarket(env) ? `Run the tests and dry_run. ${POLYMARKET_OWNER_STEP} Live trading stays off until the person decides otherwise.`
     : 'Run the tests and dry_run. Live trading stays off until the person decides otherwise.';
   return status;
 }
@@ -151,10 +154,12 @@ export function prepareRegistration({ dir, deps }, args = {}) {
   }
   params.set('venue', args.venue);
   params.set('signer', account.address);
-  if (args.maxStakeUsd !== undefined) {
-    const stake = Number(args.maxStakeUsd);
-    if (!Number.isFinite(stake) || stake < 1 || stake > 100) throw new Error('maxStakeUsd must be between 1 and 100');
-    params.set('maxStake', String(stake));
+  // The Hive's Amount per Call: what each Call stakes. The form field is
+  // still named maxStake in the link; the person can change it on the form.
+  if (args.amountPerCallUsd !== undefined) {
+    const amount = Number(args.amountPerCallUsd);
+    if (!Number.isFinite(amount) || amount < 1 || amount > 100) throw new Error('amountPerCallUsd must be between 1 and 100');
+    params.set('maxStake', String(amount));
   }
   params.set('from', 'agent');
   const url = `${ENVIRONMENTS[environment].web}/bots/new?${params.toString().replace(/\+/g, '%20')}`;
@@ -172,7 +177,8 @@ export function prepareRegistration({ dir, deps }, args = {}) {
     instructions: [
       'Open the link in the browser where you are signed in to HiveTrade (sign in first if asked; the form stays filled).',
       `Check that the signing address on the form is exactly ${account.address}. If it differs, do not create the Hive.`,
-      'Review the name, description, category, venue and per-call cap. Add a description if it is empty.',
+      'Review the name, description, category, venue and the Amount per Call (what each Call stakes). Add a description if it is empty.',
+      'Enter the Total budget (the most the bot may have at risk across its Calls) and allow the bot to trade. You can change both amounts later in Studio.',
       'Press Create bot Hive yourself. A bot Hive has no agreement checkbox.',
       'Tell your agent when it is done; it will look up the new Hive with check_registration.',
     ],
@@ -200,7 +206,7 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
     if (previous.hiveId && previous.hiveId !== String(hiveId)) changed.push(`BOT_HIVE_ID was ${previous.hiveId}`);
     if (venue && previous.venue && previous.venue !== venue) changed.push(`VENUE was ${previous.venue}`);
     return { registered: true, environment, hiveId, name: body?.name ?? null, handle: body?.handle ?? null, venue,
-      ...(venue === 'polymarket' && !ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? { polymarketLiveTrading: POLYMARKET_NOT_SELF_SERVE } : {}),
+      ...(venue === 'polymarket' && !legacyPolymarket(env) ? { polymarketLiveTrading: POLYMARKET_OWNER_STEP } : {}),
       wroteToEnv: Object.keys(updates), ...(changed.length ? { replaced: changed } : {}) };
   }
   if (response.status === 404 && body?.code === 'BOT_NOT_REGISTERED') {
@@ -250,11 +256,11 @@ export async function botStatus({ dir, deps, fetch = globalThis.fetch, now = Dat
       message: `This signing key belongs to Hive ${budget.body?.hiveId}, but BOT_HIVE_ID in .env is ${hiveId}. Run check_registration to correct .env.` };
   }
   const status = { hiveId, environment, found: true, confirmedBy: 'a request signed by the bot\'s key',
-    perCallCapUsd: num(budget.body.maxStakeUsd), openCalls: num(budget.body.openCallCount),
+    amountPerCallUsd: num(budget.body.maxStakeUsd), openCalls: num(budget.body.openCallCount),
     paused: typeof budget.body.paused === 'boolean' ? budget.body.paused : null, page: `${web}/hive/${hiveId}` };
   const who = await signedRead({ api, path: '/api/bot/whoami', message: 'hivetrade:bot-whoami', account, fetch, now }).catch(() => null);
   if (who?.status === 200) Object.assign(status, { name: who.body?.name ?? null, handle: who.body?.handle ?? null, venue: who.body?.venue ?? null });
-  if ((status.venue ?? env.VENUE) === 'polymarket' && !ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '')) status.polymarketLiveTrading = POLYMARKET_NOT_SELF_SERVE;
+  if ((status.venue ?? env.VENUE) === 'polymarket' && !legacyPolymarket(env)) status.polymarketLiveTrading = POLYMARKET_OWNER_STEP;
   // Public page data is extra. A Private Hive is not public, and that is expected.
   const response = await fetch(`${api}/api/hives/${hiveId}`, { redirect: 'error', signal: AbortSignal.timeout(30000) }).catch(() => null);
   if (response?.ok) {
@@ -334,20 +340,20 @@ export const TOOLS = [
     run: ctx => setupStatus(ctx) },
   { name: 'get_signing_key_command', description: 'The command the PERSON runs in their own terminal to create the bot\'s signing key (npm run setup), and what to tell them. Creates nothing. Never run that command yourself. If the key exists, returns only its public address.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => signingKeyCommand(ctx, args) },
-  { name: 'update_settings', description: 'Change public bot settings in .env (market, stake, venue, example or STRATEGY_* values) so you never open .env. Refuses the key, the live-trading switch, the Hive ID and the API.',
+  { name: 'update_settings', description: 'Change public bot settings in .env (market, venue, example or STRATEGY_* values) so you never open .env. The amount each Call stakes is not a .env setting: it is the Amount per Call on the Hive, set in HiveTrade. Refuses the key, the live-trading switch, the Hive ID and the API.',
     inputSchema: object({ settings: { type: 'object', description: `Keys: ${SETTABLE_KEYS.join(', ')}`, additionalProperties: { type: ['string', 'number'] } } }, ['settings']),
     run: (ctx, args) => updateSettings(ctx, args) },
   { name: 'prepare_registration', description: 'Build a pre-filled "Create a bot Hive" link for this bot\'s signing address. The person opens it, checks the address and presses Create. Submits nothing.',
     inputSchema: object({ name: { type: 'string', description: '3 to 40 characters' }, bio: { type: 'string', description: 'Up to 500 characters' },
       category: { type: 'string', enum: CATEGORIES }, venue: { type: 'string', enum: ['polymarket', 'kalshi'] },
-      maxStakeUsd: { type: 'number', minimum: 1, maximum: 100, description: 'Per-call cap in USD' },
+      amountPerCallUsd: { type: 'number', minimum: 1, maximum: 100, description: 'Amount per Call in USD: what each Call stakes. The person sets the Total budget on the form.' },
       environment: environmentProp }, ['name', 'venue']),
     run: (ctx, args) => prepareRegistration(ctx, args) },
   { name: 'check_registration', description: 'Ask HiveTrade, with a request signed by the bot\'s key, whether the Hive was created. On success writes BOT_HIVE_ID (and BOT_API_URL, VENUE) to .env.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => checkRegistration(ctx, args) },
   { name: 'set_hive_id', description: 'Write BOT_HIVE_ID to .env. Use when the person reads the Hive ID from the page and the automatic lookup is unavailable.', inputSchema: object({ hiveId: { type: 'integer', minimum: 1 } }, ['hiveId']),
     run: (ctx, args) => setHiveId(ctx, args) },
-  { name: 'get_bot_status', description: 'Confirms the bot\'s Hive with requests signed by its key (works for a Private Hive): name, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public.', inputSchema: object({ environment: environmentProp }),
+  { name: 'get_bot_status', description: 'Confirms the bot\'s Hive with requests signed by its key (works for a Private Hive): name, venue, Amount per Call, open Calls, paused. Adds member count and last Call when the Hive is public.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => botStatus(ctx, args) },
   { name: 'find_market', description: 'Turn a polymarket.com link (or slug) into the exact MARKET_SLUG. An event link with many markets returns the list; the person picks one. Public read-only lookup. Never suggest or rank markets.',
     inputSchema: object({ link: { type: 'string', description: 'polymarket.com/event/... link, or a slug' } }, ['link']),

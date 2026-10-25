@@ -6,8 +6,6 @@
   "variables": {
     "VENUE": "polymarket",
     "BOT_API_URL": "https://api.hivetrade.com",
-    "MARKET_SLUG": "replace-with-an-open-binary-market-slug",
-    "STAKE_USD": "1",
-    "MAX_STAKE_USD": "1"
+    "MARKET_SLUG": "replace-with-an-open-binary-market-slug"
   }
 }

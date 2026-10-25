@@ -70,7 +70,7 @@ export function publicSigningAddress(dir, privateKeyToAccount) {
 // Public settings the agent may change for the person, so it never has to
 // open .env. Never the key, the live-trading switch, the Hive ID or the API
 // (those have their own tools or are the person's decision).
-const SETTABLE = new Set(['VENUE', 'MARKET_SLUG', 'STAKE_USD', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_SERIES', 'KALSHI_CONTRACTS',
+const SETTABLE = new Set(['VENUE', 'MARKET_SLUG', 'STAKE_USD', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_SERIES',
   'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'POLYMARKET_DEPOSIT_WALLET']);
 export function isSettable(key) { return SETTABLE.has(key) || /^STRATEGY_[A-Z0-9_]+$/.test(key); }
 export const SETTABLE_KEYS = [...SETTABLE, 'STRATEGY_*'];

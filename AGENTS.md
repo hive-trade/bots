@@ -14,8 +14,12 @@ Kalshi; say so plainly, never call it test funds. Never mix environments.
 
 Ask for venue, Hive name, exact market (a polymarket.com link is fine:
 `npm run find-market -- <link>` gives the market slug; an event link lists its
-markets for the person to pick), category, strategy in plain language,
-spending limit and local/hosted preference. Explain the example's limitations.
+markets for the person to pick), category, strategy in plain language, the
+Amount per Call (what each Call stakes) and the Total budget, and local/hosted
+preference. A Call carries no amount: the bot sends the market, the side and a
+price cap, and each Call stakes the Amount per Call set on the Hive, within its
+Total budget. Both are set on the Hive at Create and editable in Studio, never
+in .env. Explain the example's limitations.
 Kalshi: only markets in the series listed at https://docs.hivetrade.com/run-a-bot/kalshi
 work (copied in lib/kalshi-markets.mjs); use KALSHI_SERIES for a series whose
 markets close quickly. Do not invent general venue
@@ -36,17 +40,23 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
    and presses Create; you never submit it. Bot Hives have no agreement checkbox. Then read the Hive
    ID with the signed lookup (MCP `check_registration`); if the API lacks it, ask
    for the ID the page showed (`set_hive_id`). The manual form is the fallback.
-   The user performs account consent and the Kalshi key connection. Polymarket
-   live trading for new bots is not self-serve yet: they will trade from the
-   user's own HiveTrade account, which HiveTrade is still building. Say so
-   plainly. Never tell the user to fund a bot address, sign in to Polymarket as
-   the bot, or import the bot's key into a wallet app. Never request a private key in chat.
+   The user performs account consent and the Kalshi key connection. A new
+   Polymarket bot trades from the user's own HiveTrade account: the bot only
+   signs the Call and HiveTrade places the order. The user sets the Hive's
+   Amount per Call and Total budget and allows the bot to trade in HiveTrade
+   (Studio, or while creating the Hive); you never do that step. Pass the
+   Amount per Call to `prepare_registration` so the link fills it in; the user
+   types the Total budget on the form. Never tell the user to fund a bot address,
+   sign in to Polymarket as the bot, or import the bot's key into a wallet app.
+   Never set `POLYMARKET_LEGACY_SELF_MANAGED` for a new bot: it is only for
+   older bots that place their own orders. Never request a private key in chat.
 3. Implement the user's rule in strategy.mjs. Keep execution separate from the
    strategy. No copying built-in HiveTrade strategies or private code. Replace
    test/example-strategy.test.mjs with tests for the user's rule; the other test
    files test the kit and must not be edited to fit a rule.
 4. Keep live trading false. Run npm run check, npm test and a dry run. Explain the
-   actual signal, stake, price limit and what remains unverified.
+   actual signal (market, side, price limit; no amount), that each Call stakes
+   the Hive's Amount per Call, and what remains unverified.
 5. The user decides whether to enable real orders. Follow your agent's own rules
    for financial actions. Dry runs, tests and a setup request do not authorize a
    real-money test. Never relax caps or clear unresolved journal entries to retry.
