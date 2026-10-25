@@ -123,9 +123,10 @@ press **Create bot Hive**. The agent then reads the Hive
 ID back (`check_registration`) or, if that lookup is not available yet, asks you
 for the ID the page showed (`set_hive_id`). See [agent setup](docs/agent-setup.md).
 
-Manual fallback: sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new),
-choose the venue, name the Hive, enter the **public signing address**, and set
-`BOT_HIVE_ID` in `.env` yourself.
+Manual fallback: sign in at Create a bot Hive
+([production](https://app.hivetrade.com/bots/new) or [dev](https://dev.hivetrade.com/bots/new)),
+choose the venue, name the Hive, enter the **public signing address**, and give
+your agent the Hive ID the page shows (it saves it with `set_hive_id`).
 
 Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
 The legacy daily-budget field is not an enforced daily spending limit.
@@ -135,8 +136,18 @@ per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
 bot's stake does not set it.
 
-Production uses `https://api.hivetrade.com`; a Hive registered on dev uses
-`https://api-dev.hivetrade.com`. Never mix environments. An API rejection is a
+### Environments
+
+| | Web (where you create the Hive) | API (`BOT_API_URL`) |
+|---|---|---|
+| Production (default) | `https://app.hivetrade.com` | `https://api.hivetrade.com` |
+| Dev | `https://dev.hivetrade.com` | `https://api-dev.hivetrade.com` |
+
+**Dev is not play money.** The dev site places real orders with real funds on
+Polymarket and Kalshi, exactly like production. Use small amounts on both.
+
+A Hive exists on one environment only. Never mix them: the web site where you
+press Create and the bot's `BOT_API_URL` must be on the same row. An API rejection is a
 failed preflight, not permission to bypass a restriction.
 
 ## 3. Complete venue setup

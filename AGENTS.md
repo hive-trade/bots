@@ -7,6 +7,11 @@ to HiveTrade's private production strategies, parameters or internal telemetry.
 For guided setup follow docs/agent-setup.md: never ask the person to paste a key;
 never submit the Hive form for them.
 
+Environments: production = web https://app.hivetrade.com, API
+https://api.hivetrade.com (default); dev = web https://dev.hivetrade.com, API
+https://api-dev.hivetrade.com. Dev still trades real money on Polymarket and
+Kalshi; say so plainly, never call it test funds. Never mix environments.
+
 Ask for venue, Hive name, exact market/category, strategy in plain language,
 spending limit and local/hosted preference. Explain the example's limitations.
 Only supported Kalshi directional series work today. Do not invent general venue

@@ -156,6 +156,8 @@ exact signing address each time, by pressing Create yourself.
 | Production (default) | `https://app.hivetrade.com` | `https://api.hivetrade.com` |
 | Dev | `https://dev.hivetrade.com` | `https://api-dev.hivetrade.com` |
 
+- **Dev is not play money.** It places real orders with real funds on
+  Polymarket and Kalshi, like production.
 - `prepare_registration` saves the chosen environment as `BOT_API_URL` in `.env`,
   so the later lookup asks the same API.
 - One signing address belongs to one Hive. To run a bot on the other environment,

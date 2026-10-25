@@ -43,7 +43,9 @@ Ask, reusing anything already said:
 3. The strategy idea in plain language, and the exact market.
 4. Per-call cap in USD (1 to 100) for the Hive, and `MAX_STAKE_USD` locally.
 5. Where it runs: this computer, or a host (Railway helper available).
-6. Environment: production (default) or dev.
+6. Environment: production (default, app.hivetrade.com) or dev
+   (dev.hivetrade.com). Say plainly that dev also trades real money on Polymarket
+   and Kalshi.
 
 **Check:** you can restate venue, name, idea, market, cap and host in one sentence
 and the user agrees.
