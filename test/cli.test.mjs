@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync, statSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../', import.meta.url));
 test('setup writes secret locally, prints only address and never overwrites existing .env', t => {
@@ -92,6 +93,28 @@ test('npm run dry-run forces live trading off and drops the key, whatever .env s
     env: { PATH: process.env.PATH, BOT_LIVE_TRADING_ENABLED: 'true', BOT_PRIVATE_KEY: '0x' + '01'.repeat(32) } });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), { live: 'false', key: '' });
+});
+test('a stop names the setting to fix and mentions the journal only when there is one', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-errors-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const cases = [
+    [{ VENUE: '' }, /VENUE must be polymarket or kalshi/],
+    [{ VENUE: 'polymarket', BOT_HIVE_ID: 'abc' }, /BOT_HIVE_ID must be a whole number/],
+    [{ VENUE: 'polymarket', BOT_LIVE_TRADING_ENABLED: 'true' }, /BOT_HIVE_ID is not set\. Real trading needs it/],
+    [{ VENUE: 'polymarket', MAX_STAKE_USD: '-1' }, /MAX_STAKE_USD must be a number above 0/],
+    [{ VENUE: 'polymarket', MARKET_SLUG: '' }, /MARKET_SLUG is not set/],
+    [{ VENUE: 'polymarket', STAKE_USD: '5' }, /stake \(\$5\) is above MAX_STAKE_USD \(\$1\)/],
+    [{ VENUE: 'kalshi', KALSHI_TICKER: 'BTC' }, /KALSHI_TICKER must be an exact/],
+    [{ VENUE: 'polymarket', FIXTURE_DECISION: 'throw' }, /Your strategy threw an error: my data feed is empty/],
+  ];
+  for (const [env, message] of cases) {
+    const result = runBot(dir, env);
+    assert.notEqual(result.status, 0, JSON.stringify(env));
+    assert.match(result.stderr, message, JSON.stringify(env));
+    assert.doesNotMatch(result.stderr, /journal|reconcile/, 'no journal exists yet, so none is mentioned');
+  }
+  mkdirSync(join(dir, 'state')); writeFileSync(join(dir, 'state', 'journal.json'), '[]');
+  assert.match(runBot(dir, { VENUE: '' }).stderr, /reconcile state\/journal\.json/);
 });
 test('kit tests do not depend on the rule in strategy.mjs', t => {
   // A person replaces strategy.mjs with a rule that would never match the
