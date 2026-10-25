@@ -93,6 +93,10 @@ npm run check
 npm test
 ```
 
+`npm ci` may report a few **low** severity advisories. They come from the
+Polymarket SDK's older cryptography library and have no fix yet; you do not need
+to run `npm audit fix --force`, which can break the SDK.
+
 **You** create the signing key, in your own terminal, in that folder:
 
 ```bash
