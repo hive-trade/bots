@@ -102,16 +102,18 @@ export function setupStatus({ dir, deps }) {
 
 // The person creates the key themselves (owner decision 2026-10-25). This tool
 // only says how; it creates nothing and runs nothing.
-export function signingKeyCommand({ dir, deps }) {
+export function signingKeyCommand({ dir, deps }, args = {}) {
   requireKit(dir);
   if (existsSync(envPath(dir))) {
     const signer = deps ? botSigner(dir, deps.privateKeyToAccount) : null;
     return { done: true, signingAddress: signer?.address ?? null,
       note: signer ? 'The signing key already exists. This is its public address; check it matches the one the person gave you.' : '.env exists but its key could not be read. The person restores .env from their backup.' };
   }
-  return { done: false, folder: dir, command: SETUP_COMMAND,
+  if (args.environment !== undefined && !ENVIRONMENTS[args.environment]) throw new Error('environment must be "prod" or "dev"');
+  const command = args.environment === 'dev' ? `${SETUP_COMMAND} -- --dev` : SETUP_COMMAND;
+  return { done: false, folder: dir, command, environment: args.environment ?? 'prod',
     tellThePerson: [
-      `Open a terminal on your computer, go to the bot folder (${dir}) and run: ${SETUP_COMMAND}`,
+      `Open a terminal on your computer, go to the bot folder (${dir}) and run: ${command}`,
       'It prints one line with your bot\'s public address. Copy that address and give it to me.',
       'Your private key is saved in .env on your computer. Never share it, and keep a private backup of .env.',
     ],
@@ -330,8 +332,8 @@ const environmentProp = { type: 'string', enum: ['prod', 'dev'], description: 'H
 export const TOOLS = [
   { name: 'get_setup_status', description: 'Which setup steps are done for the bot in this folder: kit, dependencies, signing identity (public address only), Hive ID, venue, market, live trading flag (and an older bot\'s Polymarket deposit wallet). Never returns secrets.', inputSchema: object(),
     run: ctx => setupStatus(ctx) },
-  { name: 'get_signing_key_command', description: 'The command the PERSON runs in their own terminal to create the bot\'s signing key (npm run setup), and what to tell them. Creates nothing. Never run that command yourself. If the key exists, returns only its public address.', inputSchema: object(),
-    run: ctx => signingKeyCommand(ctx) },
+  { name: 'get_signing_key_command', description: 'The command the PERSON runs in their own terminal to create the bot\'s signing key (npm run setup), and what to tell them. Creates nothing. Never run that command yourself. If the key exists, returns only its public address.', inputSchema: object({ environment: environmentProp }),
+    run: (ctx, args) => signingKeyCommand(ctx, args) },
   { name: 'update_settings', description: 'Change public bot settings in .env (market, stake, venue, example or STRATEGY_* values) so you never open .env. Refuses the key, the live-trading switch, the Hive ID and the API.',
     inputSchema: object({ settings: { type: 'object', description: `Keys: ${SETTABLE_KEYS.join(', ')}`, additionalProperties: { type: ['string', 'number'] } } }, ['settings']),
     run: (ctx, args) => updateSettings(ctx, args) },

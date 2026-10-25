@@ -44,6 +44,7 @@ test('get_signing_key_command creates nothing: it tells the person to run npm ru
   assert.ok(out.tellThePerson.some(line => line.includes('npm run setup')));
   assert.match(out.agentRules, /Do not run the command yourself/);
   assert.ok(!existsSync(join(dir, '.env')), 'no key was created');
+  assert.equal(json(await callTool('get_signing_key_command', { environment: 'dev' }, { dir, deps })).command, 'npm run setup -- --dev');
   makeIdentity(dir);
   const done = await callTool('get_signing_key_command', {}, { dir, deps });
   assert.doesNotMatch(text(done), SECRET);

@@ -62,8 +62,9 @@ and the user agrees.
 The project folder must be a clone of `https://github.com/hive-trade/bots`
 (Node 24+): `git clone https://github.com/hive-trade/bots.git my-bot && cd my-bot && npm ci`.
 Then ask the user to create the signing key themselves (`get_signing_key_command`
-gives the exact words): open a terminal, go to the bot folder, run `npm run setup`,
-and give you the public address it prints. Do not run it for them. It writes
+gives the exact words; pass `environment: "dev"` when they chose dev): open a
+terminal, go to the bot folder, run `npm run setup` (or `npm run setup -- --dev`
+for dev), and give you the public address it prints. Do not run it for them. It writes
 `.env` at mode 0600, never shows the key, and refuses to overwrite one. Tell the
 user to keep a private backup of `.env`.
 
@@ -115,7 +116,8 @@ Create. A bot Hive has no agreement checkbox; do not tell the user to look for o
 `BOT_HIVE_ID` (and `BOT_API_URL`, `VENUE`) to `.env`.
 - "Not created yet": the user has not pressed Create, used another address, or
   another environment. Do not retry in a loop; ask.
-- "Lookup unavailable": ask for the Hive ID the page showed, then `set_hive_id`.
+- "Lookup unavailable": ask for the Hive ID the page showed, then `set_hive_id`
+  (without the MCP tool, the user runs `npm run hive-id -- <ID>`).
 - HTTP 401: the computer clock is probably wrong.
 
 **Check:** `get_setup_status` shows the `hiveId`; `get_bot_status` returns

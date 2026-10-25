@@ -144,3 +144,25 @@ test('npm run settings shows and changes public settings without ever printing t
   assert.notEqual(node([join(root, 'scripts/settings.mjs'), 'BOT_LIVE_TRADING_ENABLED=true']).status, 0);
   assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m);
 });
+test('npm run setup -- --dev points the bot at dev, so nobody edits .env by hand', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-setup-dev-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const result = spawnSync(process.execPath, [join(root, 'scripts/setup.mjs'), '--dev'], { cwd: dir, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Your bot's public address: 0x[0-9a-fA-F]{40}\nGive this address to your agent\. Your private key was saved in \.env; never share it\.\n$/);
+  assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_API_URL=https:\/\/api-dev\.hivetrade\.com$/m);
+  const bad = spawnSync(process.execPath, [join(root, 'scripts/setup.mjs'), '--staging'], { cwd: mkdtempSync(join(tmpdir(), 'hivetrade-setup-bad-')), encoding: 'utf8' });
+  assert.notEqual(bad.status, 0); assert.match(bad.stderr, /Usage/);
+});
+test('npm run hive-id saves only BOT_HIVE_ID and rejects junk', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-hive-id-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const node = args => spawnSync(process.execPath, args, { cwd: dir, encoding: 'utf8' });
+  assert.notEqual(node([join(root, 'scripts/set-hive-id.mjs'), '42']).status, 0, 'no .env yet');
+  assert.equal(node([join(root, 'scripts/setup.mjs')]).status, 0);
+  const before = readFileSync(join(dir, '.env'), 'utf8');
+  const saved = node([join(root, 'scripts/set-hive-id.mjs'), '4262']);
+  assert.equal(saved.status, 0, saved.stderr); assert.equal(saved.stdout, 'Saved BOT_HIVE_ID=4262 in .env.\n');
+  assert.equal(readFileSync(join(dir, '.env'), 'utf8'), before.replace('BOT_HIVE_ID=', 'BOT_HIVE_ID=4262'));
+  for (const bad of ['1.5', '-3', 'abc', '42\nBOT_LIVE_TRADING_ENABLED=true']) assert.notEqual(node([join(root, 'scripts/set-hive-id.mjs'), bad]).status, 0, bad);
+});

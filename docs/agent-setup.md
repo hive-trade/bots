@@ -41,7 +41,8 @@ same server, see [Other MCP clients](#other-mcp-clients).
 2. **Kit.** Your project folder must be a clone of
    `https://github.com/hive-trade/bots` with `npm ci` run (Node.js 24+).
 3. **Signing key (you).** The agent calls `get_signing_key_command` and tells you
-   what to do: open a terminal in the bot folder and run `npm run setup`. It writes
+   what to do: open a terminal in the bot folder and run `npm run setup`
+   (`npm run setup -- --dev` for the dev site). It writes
    `.env` with permissions `0600` and prints only the public signing address. Give
    that address to the agent. The agent never runs this command and never opens
    `.env`. Keep a private backup of `.env`.
@@ -85,7 +86,7 @@ Code project folder, else the current directory.
 | Tool | What it does | Inputs | What it never does |
 |---|---|---|---|
 | `get_setup_status` | Reports which steps are done: kit, dependencies, `.env` and whether it is private, public signing address, venue, environment, Hive ID, an older bot's Polymarket deposit wallet, market, live trading flag, and the next step. | none | Return a key or any other secret. |
-| `get_signing_key_command` | Returns the command the person runs in their own terminal (`npm run setup`) and what to tell them. If the key exists, returns only its public address. | none | Create a key, run a command, or show the key. |
+| `get_signing_key_command` | Returns the command the person runs in their own terminal (`npm run setup`, or `npm run setup -- --dev`) and what to tell them. If the key exists, returns only its public address. | `environment` (optional) | Create a key, run a command, or show the key. |
 | `update_settings` | Changes public settings in `.env`: venue, market, stake, example and `STRATEGY_*` values. | `settings` (object, required) | Write the key, the live-trading switch, the Hive ID or the API. |
 | `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `maxStakeUsd` (1 to 100), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
 | `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`. | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
@@ -172,7 +173,7 @@ exact signing address each time, by pressing Create yourself.
   minute. Reconnect `hivetrade-bot` in `/mcp` once it is done.
 - **"Lookup unavailable".** The API does not have the signed lookup yet (production
   until HiveTrade's next release). Give the agent the Hive ID the page showed after
-  Create; it calls `set_hive_id`.
+  Create; it calls `set_hive_id`. Without MCP, run `npm run hive-id -- <ID>`.
 - **`BOT_NOT_REGISTERED` after you pressed Create.** The signing address on the
   form was changed, or the Hive was created on the other environment. Compare the
   address with `get_setup_status` and check which site you used.

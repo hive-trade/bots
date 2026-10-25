@@ -106,7 +106,8 @@ to run `npm audit fix --force`, which can break the SDK.
 **You** create the signing key, in your own terminal, in that folder:
 
 ```bash
-npm run setup
+npm run setup            # production (app.hivetrade.com)
+npm run setup -- --dev   # or the dev site (dev.hivetrade.com, still real money)
 ```
 
 It prints two lines:
@@ -131,12 +132,14 @@ pre-filled link (MCP tool `prepare_registration`) and never submits it. Open it,
 check that the **signing address** is exactly the one your agent showed you, and
 press **Create bot Hive**. The agent then reads the Hive
 ID back (`check_registration`) or, if that lookup is not available yet, asks you
-for the ID the page showed (`set_hive_id`). See [agent setup](docs/agent-setup.md).
+for the ID the page showed and saves it with `set_hive_id`. You can also save it
+yourself: `npm run hive-id -- 4262` (with your Hive's ID). See [agent setup](docs/agent-setup.md).
 
 Manual fallback: sign in at Create a bot Hive
 ([production](https://app.hivetrade.com/bots/new) or [dev](https://dev.hivetrade.com/bots/new)),
 choose the venue, name the Hive, enter the **public signing address**, and give
-your agent the Hive ID the page shows (it saves it with `set_hive_id`).
+your agent the Hive ID the page shows (it saves it with `set_hive_id`), or run
+`npm run hive-id -- <ID>` yourself.
 
 **Spending limits.** The most your bot may spend per Call is set in two places,
 and both apply: the Hive's per-call cap (the `maxStake` on the Create form) and
