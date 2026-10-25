@@ -168,12 +168,15 @@ exact signing address each time, by pressing Create yourself.
 
 ## Troubleshooting
 
+- **The Hive page shows a `.env` snippet.** Never paste it over `.env`: that
+  deletes the signing key. Run `npm run set-hive -- <ID>` instead, and
+  `npm run whoami` to check the key, the Hive and `BOT_HIVE_ID` agree.
 - **The server shows as failed in `/mcp` on the first session.** The plugin
   installs its dependencies when the session starts, which can take about a
   minute. Reconnect `hivetrade-bot` in `/mcp` once it is done.
 - **"Lookup unavailable".** The API does not have the signed lookup yet (production
   until HiveTrade's next release). Give the agent the Hive ID the page showed after
-  Create; it calls `set_hive_id`. Without MCP, run `npm run hive-id -- <ID>`.
+  Create; it calls `set_hive_id`. Without MCP, run `npm run set-hive -- <ID>`.
 - **`BOT_NOT_REGISTERED` after you pressed Create.** The signing address on the
   form was changed, or the Hive was created on the other environment. Compare the
   address with `get_setup_status` and check which site you used.

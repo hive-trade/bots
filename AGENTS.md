@@ -25,7 +25,8 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
    `npm run setup` (`npm run setup -- --dev` for dev) in their own terminal in
    the bot folder and to give you the public address it prints. To save a Hive
    ID without opening .env: MCP `set_hive_id`, or the person runs
-   `npm run hive-id -- <ID>`. Never run that command yourself.
+   `npm run set-hive -- <ID>`; `npm run whoami` checks it (signed, prints no
+   key). Tell the person never to paste the Hive page's .env snippet over .env. Never run that command yourself.
    **Hard rule: never read, cat, grep, open or print .env**, not even part of it.
    Change public settings with `npm run settings -- KEY=value` (or MCP
    `update_settings`) and view them with `npm run settings`, which hides the key.

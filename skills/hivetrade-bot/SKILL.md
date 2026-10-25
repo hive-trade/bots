@@ -118,8 +118,12 @@ Create. A bot Hive has no agreement checkbox; do not tell the user to look for o
 - "Not created yet": the user has not pressed Create, used another address, or
   another environment. Do not retry in a loop; ask.
 - "Lookup unavailable": ask for the Hive ID the page showed, then `set_hive_id`
-  (without the MCP tool, the user runs `npm run hive-id -- <ID>`).
+  (without the MCP tool, the user runs `npm run set-hive -- <ID>`).
 - HTTP 401: the computer clock is probably wrong.
+- Without the MCP tool: `npm run whoami` does the same signed lookup and says
+  whether `BOT_HIVE_ID` matches; `npm run set-hive -- <ID>` saves it.
+- Warn the user: never paste the Hive page's `.env` snippet over `.env`; it
+  would delete the signing key.
 
 **Check:** `get_setup_status` shows the `hiveId`; `get_bot_status` returns
 `found: true` with the expected name and venue. It uses the bot's signed reads,
