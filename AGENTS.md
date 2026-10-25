@@ -22,7 +22,9 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
    The user performs account consent, the Kalshi key connection, wallet setup and
    funding in the appropriate app. Never request a private key in chat.
 3. Implement the user's rule in strategy.mjs. Keep execution separate from the
-   strategy. No copying built-in HiveTrade strategies or private code.
+   strategy. No copying built-in HiveTrade strategies or private code. Replace
+   test/example-strategy.test.mjs with tests for the user's rule; the other test
+   files test the kit and must not be edited to fit a rule.
 4. Keep live trading false. Run npm run check, npm test and a dry run. Explain the
    actual signal, stake, price limit and what remains unverified.
 5. The user decides whether to enable real orders. Follow your agent's own rules

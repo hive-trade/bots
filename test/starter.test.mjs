@@ -7,7 +7,6 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { recoverMessageAddress } from 'viem';
 import { signalMessage, fillMessage, walletMessage, kalshiStake } from '../lib/protocol.mjs';
 import { config } from '../lib/config.mjs';
-import { strategy } from '../strategy.mjs';
 import { interpretOrder } from '../lib/polymarket.mjs';
 import { execute } from '../lib/run.mjs';
 // Public deterministic test key, never funded or used on a network.
@@ -33,12 +32,6 @@ test('fill and wallet binding fixed vectors', () => {
   assert.equal(fillMessage({ hiveId: 42, marketId: 9, fillResult: actual, nonce: 'n', issuedAt: 123 }),
     'HiveTrade bot fill v1\nhive:42\nmarket:9\nfilled:true\norder:order\nfilledUsd:0.8\nshares:2\nnonce:n\nissuedAt:123');
   assert.equal(walletMessage({ hiveId: 42, walletAddress: '0xABCD', issuedAt: 123 }), 'hivetrade:bot-register-wallet:42:0xabcd:123');
-});
-test('strategy defaults to skip and rejects invalid caps', () => {
-  assert.equal(strategy({ yesAsk: 0.4 }, {}), null);
-  assert.deepEqual(strategy({ yesAsk: 0.4 }, { EXAMPLE_SIDE: 'yes', EXAMPLE_MAX_PRICE: '0.45' }), { side: 'yes', maxPrice: 0.45 });
-  assert.equal(strategy({ yesAsk: 0.46 }, { EXAMPLE_SIDE: 'yes', EXAMPLE_MAX_PRICE: '0.45' }), null);
-  assert.throws(() => strategy({}, { EXAMPLE_SIDE: 'yes', EXAMPLE_MAX_PRICE: 'NaN' }));
 });
 test('configuration cannot silently enable trading or redirect signed requests', () => {
   const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };

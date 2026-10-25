@@ -163,6 +163,11 @@ both, it skips or rejects configuration. This rule only demonstrates a price
 limit: it has no predictive edge. Match any real data source to the market's
 resolution rules. See [example ideas](strategy-playbook.md).
 
+**Tests.** The example rule's tests are in `test/example-strategy.test.mjs`.
+When you replace `strategy.mjs`, replace that file with tests for your own rule.
+The other files in `test/` check the kit itself and never load `strategy.mjs`,
+so they stay green whatever your rule is.
+
 Keep `BOT_LIVE_TRADING_ENABLED=false`, then run:
 
 ```bash

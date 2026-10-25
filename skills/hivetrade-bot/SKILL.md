@@ -60,7 +60,9 @@ Run `list_strategies` (or read `strategy-playbook.md`). Put the user's rule in
 execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`) and
 stake settings in `.env` by editing only those lines, without printing the file.
 
-**Check:** add tests for the rule (including stale or missing data); `npm run check`
+**Check:** replace `test/example-strategy.test.mjs` (the example rule's tests)
+with tests for the user's rule, including stale or missing data. Leave the other
+test files alone: they test the kit and never load `strategy.mjs`. `npm run check`
 and `npm test` pass.
 
 ## 4. Dry run

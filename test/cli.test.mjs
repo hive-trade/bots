@@ -19,28 +19,46 @@ test('setup writes secret locally, prints only address and never overwrites exis
   assert.notEqual(run().status, 0);
   assert.equal(readFileSync(join(dir, '.env'), 'utf8'), contents);
 });
-test('both CLI dry runs use only public GET requests and need no private key', t => {
-  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-dry-run-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+// The kit's CLI tests run bot.mjs with test-support/strategy.mjs in place of
+// strategy.mjs, so they pass whatever rule the person writes.
+const useFixtureStrategy = join(root, 'test-support/use-fixture-strategy.mjs');
+function publicFetchFixture(dir) {
   const fixture = join(dir, 'fixture.mjs');
   writeFileSync(fixture, `
     globalThis.fetch = async (url, options = {}) => {
       if (options.method && options.method !== 'GET') throw new Error('WRITE REQUEST FORBIDDEN');
       let body;
       if (url.includes('builder-config')) body = { kalshiApiBase: 'https://api.elections.kalshi.com/trade-api/v2' };
-      else if (url.includes('/markets/KX')) body = {market:{ticker:'KXBTC15M-EXAMPLE',status:'active',close_time:'2099-01-01T00:00:00Z',yes_ask_dollars:'0.40',no_ask_dollars:'0.60'}};
-      else if (url.includes('gamma-api')) body = [{slug:'example',active:true,acceptingOrders:true,conditionId:'0x'+'ab'.repeat(32),outcomes:'["No","Yes"]',clobTokenIds:'["2","1"]',negRisk:false}];
+      else if (url.includes('/markets/KX')) body = {market:{ticker:'KXBTC15M-EXAMPLE',title:'BTC up in 15 minutes?',status:'active',close_time:'2099-01-01T00:00:00Z',yes_ask_dollars:'0.40',no_ask_dollars:'0.60'}};
+      else if (url.includes('gamma-api')) body = [{slug:'example',question:'Example market?',active:true,acceptingOrders:true,conditionId:'0x'+'ab'.repeat(32),outcomes:'["No","Yes"]',clobTokenIds:'["2","1"]',negRisk:false}];
       else if (url.includes('/book?')) body = { asks:[{price:'0.40',size:'3'}] };
       else throw new Error('Unexpected URL');
       return new Response(JSON.stringify(body), {status:200,headers:{'Content-Type':'application/json'}});
     };
   `);
+  return fixture;
+}
+function runBot(dir, env) {
+  return spawnSync(process.execPath, ['--import', useFixtureStrategy, '--import', publicFetchFixture(dir), join(root, 'bot.mjs')], { cwd: dir, encoding: 'utf8', env: {
+    PATH: process.env.PATH, BOT_LIVE_TRADING_ENABLED: 'false', MARKET_SLUG: 'example', KALSHI_TICKER: 'KXBTC15M-EXAMPLE', ...env,
+  } });
+}
+test('both CLI dry runs use only public GET requests and need no private key', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-dry-run-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
   for (const venue of ['polymarket', 'kalshi']) {
-    const result = spawnSync(process.execPath, ['--import', fixture, join(root, 'bot.mjs')], { cwd: dir, encoding: 'utf8', env: {
-      PATH: process.env.PATH, VENUE: venue, BOT_HIVE_ID: '42', BOT_LIVE_TRADING_ENABLED: 'false',
-      EXAMPLE_SIDE: 'yes', EXAMPLE_MAX_PRICE: '0.45', MARKET_SLUG: 'example', KALSHI_TICKER: 'KXBTC15M-EXAMPLE',
-    } });
+    const result = runBot(dir, { VENUE: venue, BOT_HIVE_ID: '42' });
     assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /DRY RUN/);
     assert.equal(result.stderr, '');
+    const skip = runBot(dir, { VENUE: venue, BOT_HIVE_ID: '42', FIXTURE_DECISION: 'skip' });
+    assert.equal(skip.status, 0, skip.stderr); assert.match(skip.stdout, /^SKIP: /m); assert.doesNotMatch(skip.stdout, /DRY RUN/);
   }
+});
+test('kit tests do not depend on the rule in strategy.mjs', t => {
+  // A person replaces strategy.mjs with a rule that would never match the
+  // fixture market. The CLI test above must still see the fixture decision.
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-own-rule-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const result = runBot(dir, { VENUE: 'polymarket', BOT_HIVE_ID: '42', EXAMPLE_SIDE: 'no', EXAMPLE_MAX_PRICE: '0.01' });
+  assert.equal(result.status, 0, result.stderr); assert.match(result.stdout, /"side":"yes"/);
 });
