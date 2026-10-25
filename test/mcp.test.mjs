@@ -32,7 +32,7 @@ const fetchReturning = (status, body, calls = []) => async (url, options) => {
 
 test('the tool list has no way to post a Call, enable live trading, fund, create a key or touch credentials', () => {
   const names = TOOLS.map(t => t.name);
-  assert.deepEqual(names, ['get_setup_status', 'get_signing_key_command', 'update_settings', 'prepare_registration', 'check_registration', 'set_hive_id', 'get_bot_status', 'list_strategies', 'get_deploy_guide', 'dry_run']);
+  assert.deepEqual(names, ['get_setup_status', 'get_signing_key_command', 'update_settings', 'prepare_registration', 'check_registration', 'set_hive_id', 'get_bot_status', 'find_market', 'list_strategies', 'get_deploy_guide', 'dry_run']);
   for (const name of names) assert.doesNotMatch(name, /signal|live|fund|withdraw|credential|order|trade|create/);
 });
 

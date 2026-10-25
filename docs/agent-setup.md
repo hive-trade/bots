@@ -15,7 +15,7 @@ In Claude Code, install the plugin:
 ```
 
 It bundles two skills (`hivetrade-bot` for setup, `hivetrade-deploy` for Railway
-hosting) and a local MCP server, `hivetrade-bot`, with the ten tools listed
+hosting) and a local MCP server, `hivetrade-bot`, with the eleven tools listed
 below. Then ask your agent to "set up my HiveTrade bot". Other agents can use the
 same server, see [Other MCP clients](#other-mcp-clients).
 
@@ -91,6 +91,7 @@ Code project folder, else the current directory.
 | `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`, and for Polymarket the deposit wallet address HiveTrade returns (`POLYMARKET_DEPOSIT_WALLET`, never overwriting a different saved one). | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
 | `set_hive_id` | Writes `BOT_HIVE_ID` to `.env`. For when the automatic lookup is unavailable. | `hiveId` (whole number, 1 or more, required) | Write any other setting. |
 | `get_bot_status` | Confirms the Hive with requests signed by the bot's key (`/api/bot/budget`, `/api/bot/whoami`), so it works for a Private Hive: name, handle, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public. | `environment` (optional) | Return the key, or change `.env`. |
+| `find_market` | Turns a polymarket.com link or slug into the exact `MARKET_SLUG`, with status and end date. An event link returns its markets for the person to pick. Public read-only Gamma lookup. | `link` (required) | Suggest, rank or choose a market. |
 | `list_strategies` | Explains where the strategy goes and the generic example ideas in this kit. | none | Share HiveTrade's own production strategies (they are not in this kit). |
 | `get_deploy_guide` | Explains hosting on Railway and who handles the key on a server. | none | Deploy anything or upload a key. |
 | `dry_run` | Runs the bot once with live trading forced off and no key, and returns the last lines of its output. Lines that look like a key are hidden. | none | Submit an intent, order or fill report. |

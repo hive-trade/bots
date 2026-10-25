@@ -11,6 +11,7 @@ import { existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { readPublicSettings, botSigner, updateEnv, envPath, isSettable, SETTABLE_KEYS } from './env-file.mjs';
 import { loadDeps } from './deps.mjs';
+import { findPolymarketMarket } from '../lib/find-market.mjs';
 
 export const ENVIRONMENTS = {
   prod: { api: 'https://api.hivetrade.com', web: 'https://app.hivetrade.com' },
@@ -367,6 +368,9 @@ export const TOOLS = [
     run: (ctx, args) => setHiveId(ctx, args) },
   { name: 'get_bot_status', description: 'Confirms the bot\'s Hive with requests signed by its key (works for a Private Hive): name, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => botStatus(ctx, args) },
+  { name: 'find_market', description: 'Turn a polymarket.com link (or slug) into the exact MARKET_SLUG. An event link with many markets returns the list; the person picks one. Public read-only lookup. Never suggest or rank markets.',
+    inputSchema: object({ link: { type: 'string', description: 'polymarket.com/event/... link, or a slug' } }, ['link']),
+    run: (ctx, args) => findPolymarketMarket(args.link, ctx.request ? { request: ctx.request } : {}) },
   { name: 'list_strategies', description: 'Where the strategy goes and the generic example ideas in this kit.', inputSchema: object(),
     run: () => listStrategies() },
   { name: 'get_deploy_guide', description: 'How to host the bot (scheduled previews on Railway) and who handles the key on a server.', inputSchema: object(),

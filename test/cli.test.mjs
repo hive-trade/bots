@@ -108,6 +108,7 @@ test('a stop names the setting to fix and mentions the journal only when there i
     [{ VENUE: 'polymarket', BOT_LIVE_TRADING_ENABLED: 'true' }, /BOT_HIVE_ID is not set\. Real trading needs it/],
     [{ VENUE: 'polymarket', MAX_STAKE_USD: '-1' }, /MAX_STAKE_USD must be a number above 0/],
     [{ VENUE: 'polymarket', MARKET_SLUG: '' }, /MARKET_SLUG is not set/],
+    [{ VENUE: 'polymarket', MARKET_SLUG: 'https://polymarket.com/event/x' }, /MARKET_SLUG is a link, not a slug\. Run npm run find-market/],
     [{ VENUE: 'polymarket', STAKE_USD: '5' }, /stake \(\$5\) is above MAX_STAKE_USD \(\$1\)/],
     [{ VENUE: 'kalshi', KALSHI_TICKER: 'BTC' }, /KALSHI_TICKER must be an exact/],
     [{ VENUE: 'polymarket', FIXTURE_DECISION: 'throw' }, /Your strategy threw an error: my data feed is empty/],

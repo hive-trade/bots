@@ -176,6 +176,14 @@ do not add a second local Kalshi order or a Polymarket-style fill report.
 
 ### Polymarket
 
+**Event link or market slug?** A Polymarket *event* page
+(`polymarket.com/event/<event>`) can hold many Yes/No *markets*, and each market
+has its own slug. The bot trades exactly one market, so `MARKET_SLUG` must be a
+market slug. Paste the link into `npm run find-market -- <link>` (MCP tool
+`find_market`): if the link points at one market it prints `MARKET_SLUG=...`, its
+status and Polymarket's end date; if it is an event, it lists the event's open
+markets and you pick the one your rule trades.
+
 1. Set `VENUE=polymarket`. When you press **Create bot Hive**, HiveTrade creates
    the bot's own deposit wallet and shows its address. You do not need to visit
    Polymarket or import the bot's key into a wallet app; never do that.
@@ -185,7 +193,9 @@ do not add a second local Kalshi order or a Polymarket-style fill report.
    the signing address.
 3. Send funds to that deposit wallet address, as the Hive page explains. Never
    send funds to the signing address.
-4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. The runner derives CLOB
+4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. A polymarket.com
+   link is not a slug: `npm run find-market -- <link>` turns it into one (see
+   below). The runner derives CLOB
    authentication locally and retrieves the public builder configuration from HiveTrade.
 
 **Register the wallet** (older bots only). Bots created before HiveTrade made the

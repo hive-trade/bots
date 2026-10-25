@@ -12,7 +12,9 @@ https://api.hivetrade.com (default); dev = web https://dev.hivetrade.com, API
 https://api-dev.hivetrade.com. Dev still trades real money on Polymarket and
 Kalshi; say so plainly, never call it test funds. Never mix environments.
 
-Ask for venue, Hive name, exact market/category, strategy in plain language,
+Ask for venue, Hive name, exact market (a polymarket.com link is fine:
+`npm run find-market -- <link>` gives the market slug; an event link lists its
+markets for the person to pick), category, strategy in plain language,
 spending limit and local/hosted preference. Explain the example's limitations.
 Only supported Kalshi directional series work today. Do not invent general venue
 support, automatic withdrawals, redemption, profitability or daily platform caps.

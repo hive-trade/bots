@@ -40,7 +40,10 @@ Ask, reusing anything already said:
    key; only `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers today) or **Polymarket**
    (HiveTrade creates the bot's deposit wallet with the Hive; the user funds it).
 2. Bot name (3 to 40 characters), a one-line description, and a category.
-3. The strategy idea in plain language, and the exact market.
+3. The user's own rule in their words, and the exact market (a link is fine).
+   For Polymarket, run `find_market` (or `npm run find-market -- <link>`): an
+   event link can hold many markets; show the list and let the user pick. Tell
+   them the market's end date as a fact. Never suggest, rank or choose a market.
 4. The most it may spend per Call, in USD (1 to 100). Use that one number for the
    Hive's per-call cap and `MAX_STAKE_USD`, and keep `STAKE_USD` (or the Kalshi
    contracts at the price cap) at or below it. Never describe a daily limit:
