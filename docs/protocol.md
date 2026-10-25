@@ -58,7 +58,8 @@ HiveTrade creates a new Polymarket bot Hive's deposit wallet at registration.
 The kit reads its address from the signed `whoami` / `budget` responses when
 present (`depositWallet`, `depositWalletAddress` or `polymarketDepositWallet`).
 
-Wallet binding, for bots created before that (a wallet the operator set up):
+Register the wallet (`npm run bind-wallet`, same as `npm run register-wallet`),
+for bots created before that, whose operator set up the wallet:
 `POST /api/admin/bot/register-wallet` with
 `{ hiveId, walletAddress, issuedAt, signature }`; sign
 `hivetrade:bot-register-wallet:<hiveId>:<lowercase-wallet>:<issuedAt>`.

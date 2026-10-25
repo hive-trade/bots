@@ -188,9 +188,11 @@ do not add a second local Kalshi order or a Polymarket-style fill report.
 4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. The runner derives CLOB
    authentication locally and retrieves the public builder configuration from HiveTrade.
 
-Bots created before HiveTrade made the wallet for you used `npm run bind-wallet`
-to register a wallet they set up themselves. That still works; new bots do not
-need it. The starter does not redeem winnings. Follow the venue's eligibility
+**Register the wallet** (older bots only). Bots created before HiveTrade made the
+wallet for you register a wallet they set up themselves with `npm run bind-wallet`
+(`npm run register-wallet` is the same command). It sends the signed
+register-wallet request in [the protocol](docs/protocol.md); it is a setup write,
+not a trade. New bots do not need it. The starter does not redeem winnings. Follow the venue's eligibility
 rules; a server does not change regional eligibility.
 
 ## 4. Implement your idea and preview it

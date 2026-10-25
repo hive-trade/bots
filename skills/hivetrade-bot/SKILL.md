@@ -131,8 +131,9 @@ signed `POST /api/bot/budget` (see [protocol](../../docs/protocol.md)).
   If the kit reports no address, the user copies it from the Hive page and you
   set it in `.env`. The user sends funds to that address. Never tell the user to
   sign in to Polymarket as the bot or to import the bot's key into a wallet app,
-  and never send funds to the signing address. `npm run bind-wallet` is only for
-  bots created before HiveTrade made the wallet.
+  and never send funds to the signing address. "Register the wallet"
+  (`npm run bind-wallet`, same as `npm run register-wallet`) is only for bots
+  created before HiveTrade made the wallet.
 
 **Check:** Kalshi - the user confirms the key and consent are done. Polymarket -
 `get_setup_status` shows `polymarketDepositWallet` and the user says they sent
