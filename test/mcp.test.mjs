@@ -173,21 +173,56 @@ test('set_hive_id writes only BOT_HIVE_ID and rejects junk', async t => {
   assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m);
 });
 
-test('get_bot_status summarizes the public Hive defensively', async t => {
+function statusFetch({ budget = [200, { hiveId: 9, maxStakeUsd: 2, dailyBudgetUsd: 10, remainingUsd: 10, openCallCount: 1, paused: false }],
+  whoami = [200, { hiveId: 9, name: 'BTC bot', handle: 'btc_bot', venue: 'kalshi' }], hive = [404, { error: 'Hive not found' }] } = {}, calls = []) {
+  return async (url, options = {}) => {
+    calls.push({ url, options });
+    const [status, body] = url.endsWith('/api/bot/budget') ? budget : url.endsWith('/api/bot/whoami') ? whoami : hive;
+    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  };
+}
+test('get_bot_status confirms a Private Hive with the bot\'s signed reads', async t => {
+  // Found 2026-10-25: the public lookup cannot see a Private Hive (the form's
+  // default), and the tool told the person their correct settings were wrong.
+  const dir = kit(t);
+  await callTool('create_signing_key', {}, { dir, deps });
+  const address = privateKeyToAccount(keyOf(dir)).address;
+  await callTool('set_hive_id', { hiveId: 9 }, { dir, deps });
+  const calls = [];
+  const result = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({}, calls), now: () => 1789480000000 });
+  assert.doesNotMatch(text(result), SECRET);
+  const out = json(result);
+  assert.equal(out.found, true); assert.equal(out.publicPage, false); assert.match(out.note, /Private Hive/);
+  assert.doesNotMatch(text(result), /Check BOT_HIVE_ID/);
+  assert.equal(out.name, 'BTC bot'); assert.equal(out.venue, 'kalshi'); assert.equal(out.perCallCapUsd, 2); assert.equal(out.openCalls, 1);
+  assert.ok(!('dailyBudgetUsd' in out) && !('remainingUsd' in out), 'the legacy daily budget is not a limit, so it is not shown');
+  assert.equal(calls[0].url, 'https://api.hivetrade.com/api/bot/budget'); assert.equal(calls[0].options.method, 'POST');
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(await recoverMessageAddress({ message: 'hivetrade:bot-budget:1789480000000', signature: body.signature }), address);
+});
+test('get_bot_status adds public page data when the Hive is public', async t => {
   const dir = kit(t);
   await callTool('create_signing_key', {}, { dir, deps });
   await callTool('set_hive_id', { hiveId: 9 }, { dir, deps });
-  const calls = [];
   const hive = { id: 9, username: 'btc_bot', displayName: 'BTC bot', executionVenue: 'kalshi', isBot: true, memberCount: 3, resolvedCalls: 4,
     recentMarkets: [{ question: 'old', status: 'resolved', createdAt: '2026-06-01T00:00:00Z', influencerPosition: 'no' },
       { question: 'new', status: 'open', createdAt: '2026-07-01T00:00:00Z', influencerPosition: 'yes' }, null] };
-  const out = json(await callTool('get_bot_status', {}, { dir, deps, fetch: fetchReturning(200, hive, calls) }));
-  assert.equal(calls[0].url, 'https://api.hivetrade.com/api/hives/9'); assert.equal(calls[0].options.method, undefined);
-  assert.equal(out.name, 'BTC bot'); assert.equal(out.memberCount, 3); assert.equal(out.venue, 'kalshi');
+  const out = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ hive: [200, hive] }) }));
+  assert.equal(out.publicPage, true); assert.equal(out.memberCount, 3);
   assert.deepEqual(out.lastCall, { question: 'new', side: 'yes', status: 'open', createdAt: '2026-07-01T00:00:00Z' });
-  const sparse = json(await callTool('get_bot_status', {}, { dir, deps, fetch: fetchReturning(200, {}) }));
-  assert.equal(sparse.lastCall, null); assert.equal(sparse.memberCount, null);
-  assert.equal(json(await callTool('get_bot_status', {}, { dir, deps, fetch: fetchReturning(404, { error: 'Hive not found' }) })).found, false);
+  const sparse = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ whoami: [404, {}], hive: [200, {}] }) }));
+  assert.equal(sparse.lastCall, null); assert.equal(sparse.memberCount, null); assert.equal(sparse.found, true);
+});
+test('get_bot_status names a real mismatch, an unregistered key and clock skew', async t => {
+  const dir = kit(t);
+  await callTool('create_signing_key', {}, { dir, deps });
+  await callTool('set_hive_id', { hiveId: 9 }, { dir, deps });
+  const other = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 12, maxStakeUsd: 1 }] }) }));
+  assert.equal(other.hiveIdMismatch, true); assert.match(other.message, /belongs to Hive 12/);
+  const none = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [401, { error: 'signer is not a registered bot' }] }) }));
+  assert.equal(none.found, false); assert.match(none.message, /No bot Hive on prod uses this signing address/);
+  const skew = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [401, { error: 'stale or future-dated request' }] }) });
+  assert.ok(skew.isError); assert.match(text(skew), /clock/);
 });
 
 test('dry_run forces live trading off, gives the run no key and hides key-like lines', async t => {

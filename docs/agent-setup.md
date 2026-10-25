@@ -62,7 +62,9 @@ same server, see [Other MCP clients](#other-mcp-clients).
    asks HiveTrade with a request signed by the bot's key and saves `BOT_HIVE_ID`.
    If the lookup is not available, it asks you for the Hive ID the page showed and
    calls `set_hive_id`.
-9. **Confirm.** The agent calls `get_bot_status` to check the Hive's name and venue.
+9. **Confirm.** The agent calls `get_bot_status`. It confirms the Hive with
+   requests signed by the bot's key, so it also works for a Private Hive (the
+   form's default), and shows the name, venue and per-call cap.
 10. **Venue setup (you).** Kalshi: connect your Kalshi API key in HiveTrade
     Settings and give the execution consent. Polymarket: deploy and fund the bot's
     own deposit wallet, set `POLYMARKET_DEPOSIT_WALLET`, then run
@@ -84,7 +86,7 @@ Code project folder, else the current directory.
 | `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `maxStakeUsd` (1 to 100), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
 | `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`. | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
 | `set_hive_id` | Writes `BOT_HIVE_ID` to `.env`. For when the automatic lookup is unavailable. | `hiveId` (whole number, 1 or more, required) | Write any other setting. |
-| `get_bot_status` | Reads the Hive's public page data: name, handle, venue, member count, resolved Calls, page link, last Call. | `environment` (optional) | Sign anything or read private data. |
+| `get_bot_status` | Confirms the Hive with requests signed by the bot's key (`/api/bot/budget`, `/api/bot/whoami`), so it works for a Private Hive: name, handle, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public. | `environment` (optional) | Return the key, or change `.env`. |
 | `list_strategies` | Explains where the strategy goes and the generic example ideas in this kit. | none | Share HiveTrade's own production strategies (they are not in this kit). |
 | `get_deploy_guide` | Explains hosting on Railway and who handles the key on a server. | none | Deploy anything or upload a key. |
 | `dry_run` | Runs the bot once with live trading forced off and no key, and returns the last lines of its output. Lines that look like a key are hidden. | none | Submit an intent, order or fill report. |

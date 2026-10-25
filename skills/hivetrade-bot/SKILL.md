@@ -99,8 +99,11 @@ Captain agreement, press Create. Without the MCP tool, build the same link:
 - "Lookup unavailable": ask for the Hive ID the page showed, then `set_hive_id`.
 - HTTP 401: the computer clock is probably wrong.
 
-**Check:** `get_setup_status` shows the `hiveId`; `get_bot_status` finds the Hive
-with the expected name and venue.
+**Check:** `get_setup_status` shows the `hiveId`; `get_bot_status` returns
+`found: true` with the expected name and venue. It uses the bot's signed reads,
+so a Private Hive (the form's default) is found too; `publicPage: false` is
+normal and is not a settings problem. Without the MCP tool, the same check is a
+signed `POST /api/bot/budget` (see [protocol](../../docs/protocol.md)).
 
 ## 7. Venue setup (the user does this)
 

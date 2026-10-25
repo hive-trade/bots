@@ -21,6 +21,11 @@ See [agent setup](agent-setup.md#registration-protocol).
 response. This does not reserve funds or guarantee acceptance. The API applies
 its other authentication, venue, balance, consent and execution gates on submit.
 
+It is also the status check after registration: it answers for the signer's own
+Hive even when that Hive is Private, which the public `GET /api/hives/<id>` cannot
+see. HTTP 401 with `signer is not a registered bot` means no Hive uses this
+signing address on that environment.
+
 ## Polymarket
 
 `POST /api/bot/signal` with `{ signal, signature }`. The signal contains

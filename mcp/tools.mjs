@@ -191,26 +191,56 @@ export function setHiveId({ dir }, args = {}) {
   return { hiveId, wroteToEnv: ['BOT_HIVE_ID'] };
 }
 
-export async function botStatus({ dir, fetch = globalThis.fetch }, args = {}) {
-  const env = readEnv(dir);
-  if (!env?.BOT_HIVE_ID) throw new Error('BOT_HIVE_ID is not set yet. Finish registration first.');
+async function signedRead({ api, path, message, account, fetch, now }) {
+  const issuedAt = now();
+  const signature = await account.signMessage({ message: `${message}:${issuedAt}` });
+  const response = await fetch(`${api}${path}`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000),
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ issuedAt, signature }) });
+  return { status: response.status, body: await readJson(response) };
+}
+// Confirms the Hive with requests signed by the bot's key, so it works for a
+// Private Hive (the form's default), which the public lookup cannot see.
+export async function botStatus({ dir, deps, fetch = globalThis.fetch, now = Date.now }, args = {}) {
+  const { env, account } = needEnvAndSigner(dir, deps);
+  if (!env.BOT_HIVE_ID) throw new Error('BOT_HIVE_ID is not set yet. Finish registration first (check_registration).');
   const hiveId = hiveIdOf(env.BOT_HIVE_ID);
   const environment = pickEnvironment(args.environment, env);
-  const response = await fetch(`${ENVIRONMENTS[environment].api}/api/hives/${hiveId}`, { redirect: 'error', signal: AbortSignal.timeout(30000) });
-  if (response.status === 404) return { hiveId, environment, found: false, message: 'No public Hive with this ID on this environment. Check BOT_HIVE_ID and BOT_API_URL.' };
-  if (!response.ok) throw new Error(`Hive lookup failed: HTTP ${response.status}`);
-  const hive = await readJson(response) ?? {};
-  const markets = Array.isArray(hive.recentMarkets) ? hive.recentMarkets : [];
-  const last = markets.filter(m => m && typeof m.createdAt === 'string')
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+  const { api, web } = ENVIRONMENTS[environment];
+  const budget = await signedRead({ api, path: '/api/bot/budget', message: 'hivetrade:bot-budget', account, fetch, now });
+  if (budget.status === 401 && /not a registered bot/i.test(String(budget.body?.error ?? ''))) {
+    return { hiveId, environment, found: false, signingAddress: account.address,
+      message: `No bot Hive on ${environment} uses this signing address. If the person pressed Create, check which site they used (production or dev) and that the form showed this signing address.` };
+  }
+  if (budget.status === 401) throw new Error('HiveTrade rejected the signed status read (HTTP 401). The most common cause is a wrong computer clock: sync the system time and try again.');
+  if (budget.status !== 200) throw new Error(`Status read failed: HTTP ${budget.status}. Nothing was changed.`);
   const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-  return { hiveId, environment, found: true,
-    name: hive.displayName ?? hive.name ?? null, handle: hive.username ?? null,
-    venue: hive.executionVenue ?? null, isBot: hive.isBot ?? null,
-    memberCount: num(hive.memberCount), resolvedCalls: num(hive.resolvedCalls),
-    page: `${ENVIRONMENTS[environment].web}/hive/${hiveId}`,
-    lastCall: last ? { question: last.question ?? null, side: last.influencerPosition ?? last.captainPosition?.side ?? null,
-      status: last.status ?? null, createdAt: last.createdAt } : null };
+  if (num(budget.body?.hiveId) !== hiveId) {
+    return { hiveId, environment, found: true, hiveIdMismatch: true, keyBelongsToHive: num(budget.body?.hiveId),
+      message: `This signing key belongs to Hive ${budget.body?.hiveId}, but BOT_HIVE_ID in .env is ${hiveId}. Run check_registration to correct .env.` };
+  }
+  const status = { hiveId, environment, found: true, confirmedBy: 'a request signed by the bot\'s key',
+    perCallCapUsd: num(budget.body.maxStakeUsd), openCalls: num(budget.body.openCallCount),
+    paused: typeof budget.body.paused === 'boolean' ? budget.body.paused : null, page: `${web}/hive/${hiveId}` };
+  const who = await signedRead({ api, path: '/api/bot/whoami', message: 'hivetrade:bot-whoami', account, fetch, now }).catch(() => null);
+  if (who?.status === 200) Object.assign(status, { name: who.body?.name ?? null, handle: who.body?.handle ?? null, venue: who.body?.venue ?? null });
+  // Public page data is extra. A Private Hive is not public, and that is expected.
+  const response = await fetch(`${api}/api/hives/${hiveId}`, { redirect: 'error', signal: AbortSignal.timeout(30000) }).catch(() => null);
+  if (response?.ok) {
+    const hive = await readJson(response) ?? {};
+    const markets = Array.isArray(hive.recentMarkets) ? hive.recentMarkets : [];
+    const last = markets.filter(m => m && typeof m.createdAt === 'string')
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+    Object.assign(status, { publicPage: true,
+      name: status.name ?? hive.displayName ?? hive.name ?? null, handle: status.handle ?? hive.username ?? null,
+      venue: status.venue ?? hive.executionVenue ?? null,
+      memberCount: num(hive.memberCount), resolvedCalls: num(hive.resolvedCalls),
+      lastCall: last ? { question: last.question ?? null, side: last.influencerPosition ?? last.captainPosition?.side ?? null,
+        status: last.status ?? null, createdAt: last.createdAt } : null });
+  } else {
+    status.publicPage = false;
+    status.note = 'The Hive exists (confirmed by the signed read). Its page is not public, which is normal for a Private Hive, the form\'s default. Member count and recent Calls are not shown.';
+  }
+  return status;
 }
 
 export function listStrategies() {
@@ -281,7 +311,7 @@ export const TOOLS = [
     run: (ctx, args) => checkRegistration(ctx, args) },
   { name: 'set_hive_id', description: 'Write BOT_HIVE_ID to .env. Use when the person reads the Hive ID from the page and the automatic lookup is unavailable.', inputSchema: object({ hiveId: { type: 'integer', minimum: 1 } }, ['hiveId']),
     run: (ctx, args) => setHiveId(ctx, args) },
-  { name: 'get_bot_status', description: 'Public summary of the bot\'s Hive: name, venue, member count, last Call.', inputSchema: object({ environment: environmentProp }),
+  { name: 'get_bot_status', description: 'Confirms the bot\'s Hive with requests signed by its key (works for a Private Hive): name, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => botStatus(ctx, args) },
   { name: 'list_strategies', description: 'Where the strategy goes and the generic example ideas in this kit.', inputSchema: object(),
     run: () => listStrategies() },
