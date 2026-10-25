@@ -58,6 +58,20 @@ function hiveIdOf(value) {
   if (!Number.isSafeInteger(id) || id <= 0 || String(value).trim() !== String(id)) throw new Error('hiveId must be a positive whole number');
   return id;
 }
+// HiveTrade creates a Polymarket bot's deposit wallet when the Hive is created
+// (owner decision 2026-10-25) and may return its address in the bot's signed
+// reads. The field is read defensively: absent or malformed => null, and the
+// person is pointed to the Hive page instead.
+export function depositWalletFrom(...bodies) {
+  for (const body of bodies) {
+    if (!body || typeof body !== 'object') continue;
+    for (const value of [body.depositWallet, body.depositWalletAddress, body.polymarketDepositWallet, body.depositWallet?.address]) {
+      if (typeof value === 'string' && ADDRESS.test(value)) return value;
+    }
+  }
+  return null;
+}
+const WALLET_FALLBACK = 'Check the Hive page for your deposit wallet address, then set POLYMARKET_DEPOSIT_WALLET in .env to it.';
 async function readJson(response) {
   try { return await response.json(); } catch { return null; }
 }
@@ -89,7 +103,7 @@ export function setupStatus({ dir, deps }) {
     : !env ? 'Create the signing identity (create_signing_key or npm run setup).'
     : !status.signingAddress ? 'Fix the signing identity in .env locally; never paste a key in chat.'
     : !status.hiveId ? 'Create the Hive: prepare_registration, then check_registration once the person pressed Create.'
-    : env.VENUE === 'polymarket' && !status.polymarketDepositWallet ? 'Polymarket: deploy and fund the bot\'s own deposit wallet, set POLYMARKET_DEPOSIT_WALLET, then npm run bind-wallet.'
+    : env.VENUE === 'polymarket' && !status.polymarketDepositWallet ? 'Polymarket: HiveTrade created the bot\'s deposit wallet with the Hive. Run check_registration to save its address to .env; if it reports none, the Hive page shows it. Then the person sends funds to that address.'
     : !status.market ? 'Choose the exact market (KALSHI_TICKER or MARKET_SLUG) and implement the strategy, then dry_run.'
     : 'Run the tests and dry_run. Live trading stays off until the person decides otherwise.';
   return status;
@@ -165,11 +179,19 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
     const updates = { BOT_HIVE_ID: String(hiveId), BOT_API_URL: api };
     // The Hive is bound to one venue; the template's default must follow it.
     if (venue) updates.VENUE = venue;
+    const wallet = venue === 'polymarket' ? depositWalletFrom(body) : null;
+    const savedWallet = env.POLYMARKET_DEPOSIT_WALLET || '';
+    let walletNote;
+    if (wallet && !savedWallet) updates.POLYMARKET_DEPOSIT_WALLET = wallet;
+    else if (wallet && savedWallet.toLowerCase() !== wallet.toLowerCase()) walletNote = `HiveTrade reports deposit wallet ${wallet}, but POLYMARKET_DEPOSIT_WALLET in .env is ${savedWallet}. .env was not changed; ask the person which is right (the Hive page shows the wallet).`;
+    else if (venue === 'polymarket' && !wallet && !savedWallet) walletNote = WALLET_FALLBACK;
     updateEnv(dir, updates);
     const changed = [];
     if (previous.hiveId && previous.hiveId !== String(hiveId)) changed.push(`BOT_HIVE_ID was ${previous.hiveId}`);
     if (venue && previous.venue && previous.venue !== venue) changed.push(`VENUE was ${previous.venue}`);
     return { registered: true, environment, hiveId, name: body?.name ?? null, handle: body?.handle ?? null, venue,
+      ...(venue === 'polymarket' ? { depositWallet: wallet ?? (savedWallet || null) } : {}),
+      ...(walletNote ? { depositWalletNote: walletNote } : {}),
       wroteToEnv: Object.keys(updates), ...(changed.length ? { replaced: changed } : {}) };
   }
   if (response.status === 404 && body?.code === 'BOT_NOT_REGISTERED') {
@@ -223,6 +245,12 @@ export async function botStatus({ dir, deps, fetch = globalThis.fetch, now = Dat
     paused: typeof budget.body.paused === 'boolean' ? budget.body.paused : null, page: `${web}/hive/${hiveId}` };
   const who = await signedRead({ api, path: '/api/bot/whoami', message: 'hivetrade:bot-whoami', account, fetch, now }).catch(() => null);
   if (who?.status === 200) Object.assign(status, { name: who.body?.name ?? null, handle: who.body?.handle ?? null, venue: who.body?.venue ?? null });
+  if ((status.venue ?? env.VENUE) === 'polymarket') {
+    const wallet = depositWalletFrom(budget.body, who?.body);
+    status.depositWallet = wallet ?? (ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null);
+    if (!status.depositWallet) status.depositWalletNote = WALLET_FALLBACK;
+    else status.depositWalletNote = 'Fund the bot by sending funds to this deposit wallet, as the Hive page explains. Never send funds to the signing address.';
+  }
   // Public page data is extra. A Private Hive is not public, and that is expected.
   const response = await fetch(`${api}/api/hives/${hiveId}`, { redirect: 'error', signal: AbortSignal.timeout(30000) }).catch(() => null);
   if (response?.ok) {
@@ -307,7 +335,7 @@ export const TOOLS = [
       maxStakeUsd: { type: 'number', minimum: 1, maximum: 100, description: 'Per-call cap in USD' },
       environment: environmentProp }, ['name', 'venue']),
     run: (ctx, args) => prepareRegistration(ctx, args) },
-  { name: 'check_registration', description: 'Ask HiveTrade, with a request signed by the bot\'s key, whether the Hive was created. On success writes BOT_HIVE_ID (and BOT_API_URL, VENUE) to .env.', inputSchema: object({ environment: environmentProp }),
+  { name: 'check_registration', description: 'Ask HiveTrade, with a request signed by the bot\'s key, whether the Hive was created. On success writes BOT_HIVE_ID (and BOT_API_URL, VENUE, and for Polymarket the deposit wallet address HiveTrade created) to .env.', inputSchema: object({ environment: environmentProp }),
     run: (ctx, args) => checkRegistration(ctx, args) },
   { name: 'set_hive_id', description: 'Write BOT_HIVE_ID to .env. Use when the person reads the Hive ID from the page and the automatic lookup is unavailable.', inputSchema: object({ hiveId: { type: 'integer', minimum: 1 } }, ['hiveId']),
     run: (ctx, args) => setHiveId(ctx, args) },

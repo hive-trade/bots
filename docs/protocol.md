@@ -52,7 +52,12 @@ halt for reconciliation. An order ID alone is not evidence of a fill. API-owned
 follower orders can remain even when the Captain fails: never report a fabricated
 no-fill or assume everything was canceled.
 
-Wallet binding: `POST /api/admin/bot/register-wallet` with
+HiveTrade creates a new Polymarket bot Hive's deposit wallet at registration.
+The kit reads its address from the signed `whoami` / `budget` responses when
+present (`depositWallet`, `depositWalletAddress` or `polymarketDepositWallet`).
+
+Wallet binding, for bots created before that (a wallet the operator set up):
+`POST /api/admin/bot/register-wallet` with
 `{ hiveId, walletAddress, issuedAt, signature }`; sign
 `hivetrade:bot-register-wallet:<hiveId>:<lowercase-wallet>:<issuedAt>`.
 This route uses the bot signature despite its `/admin` prefix.

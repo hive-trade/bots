@@ -55,8 +55,9 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
 4. **You:** open it, check the signing address, and press **Create bot Hive**.
 5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
-6. **You:** connect your Kalshi API key and consent, or fund the bot's Polymarket
-   deposit wallet.
+6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: send
+   funds to the bot's deposit wallet. HiveTrade creates that wallet when you press
+   Create and shows its address; `npm run wallet` prints it too.
 7. **You:** turn on live trading, only when you decide to.
 
 Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
@@ -65,10 +66,11 @@ Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/
 
 - A small **user-selected side + maximum price** example, disabled until configured.
   It is a programming example, not a forecast or a promise of profit.
-- Polymarket: bot-owned deposit wallet, signed intent, local order, actual fill report.
+- Polymarket: a deposit wallet for the bot, created by HiveTrade with the Hive;
+  signed intent, local order, actual fill report.
 - Kalshi: signed v2 intent; HiveTrade executes using the operator's connected account.
   No Kalshi private key belongs in this runner.
-- Local key creation, wallet binding, spending checks, persistent duplicate prevention,
+- Local key creation, spending checks, persistent duplicate prevention,
   and tests that do not place real trades.
 
 The runner checks **one exact market once, then exits**. Start here before adding
@@ -137,20 +139,22 @@ do not add a second local Kalshi order or a Polymarket-style fill report.
 
 ### Polymarket
 
-1. Set `VENUE=polymarket`. Complete Polymarket's supported wallet setup using this
-   bot's signing identity. The bot needs its **own deployed deposit wallet**, with
-   tradable collateral and trading approvals; your human account's wallet is not
-   a substitute. Follow [wallet setup](https://docs.polymarket.com/trading/wallets-auth).
-2. Set `POLYMARKET_DEPOSIT_WALLET` to the deposit contract address, not the signing
-   address. Complete funding/wrapping using Polymarket's supported tools.
-3. Run `npm run bind-wallet` (alias: `npm run register-wallet`) to associate that wallet with this Hive. The API checks
-   its on-chain owner. This is a setup write, not a trade.
+1. Set `VENUE=polymarket`. When you press **Create bot Hive**, HiveTrade creates
+   the bot's own deposit wallet and shows its address. You do not need to visit
+   Polymarket or import the bot's key into a wallet app; never do that.
+2. Your agent saves the address as `POLYMARKET_DEPOSIT_WALLET` in `.env`
+   (`check_registration` does this). `npm run wallet` prints it. If the kit
+   cannot read it yet, copy it from the Hive page. It is the deposit wallet, not
+   the signing address.
+3. Send funds to that deposit wallet address, as the Hive page explains. Never
+   send funds to the signing address.
 4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. The runner derives CLOB
    authentication locally and retrieves the public builder configuration from HiveTrade.
 
-The starter does not deploy wallets, create approvals, wrap collateral or redeem
-winnings. Those are separate prerequisites/maintenance tasks. Follow the venue's
-eligibility rules; a server does not change regional eligibility.
+Bots created before HiveTrade made the wallet for you used `npm run bind-wallet`
+to register a wallet they set up themselves. That still works; new bots do not
+need it. The starter does not redeem winnings. Follow the venue's eligibility
+rules; a server does not change regional eligibility.
 
 ## 4. Implement your idea and preview it
 
@@ -184,7 +188,7 @@ whatever `.env` says. It needs no Hive ID, so you can run it before you create
 the Hive. (`npm start` does the same while `BOT_LIVE_TRADING_ENABLED=false`.)
 A dry run fetches public market data and prints a decision. It submits **no intent,
 order, or fill report**. It does not prove wallet funding, trading permissions, or
-that a live order will fill. `npm run setup` and `bind-wallet` are separate commands.
+that a live order will fill.
 
 ## 5. Enable only when you intend to trade
 

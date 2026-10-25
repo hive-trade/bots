@@ -32,7 +32,7 @@ same server, see [Other MCP clients](#other-mcp-clients).
 | Check the signing address on the form and press **Create bot Hive** | You |
 | Tick the Captain agreement | You |
 | Kalshi: connect your Kalshi API key in HiveTrade Settings and give the execution consent | You |
-| Polymarket: deploy and fund the bot's own deposit wallet | You |
+| Polymarket: send funds to the bot's deposit wallet (HiveTrade creates it with the Hive) | You |
 | Turn on live trading (`BOT_LIVE_TRADING_ENABLED=true`) | You |
 | On a server: put the signing key in the host's secret settings | You |
 
@@ -66,9 +66,11 @@ same server, see [Other MCP clients](#other-mcp-clients).
    requests signed by the bot's key, so it also works for a Private Hive (the
    form's default), and shows the name, venue and per-call cap.
 10. **Venue setup (you).** Kalshi: connect your Kalshi API key in HiveTrade
-    Settings and give the execution consent. Polymarket: deploy and fund the bot's
-    own deposit wallet, set `POLYMARKET_DEPOSIT_WALLET`, then run
-    `npm run bind-wallet`. The agent runs `dry_run` again.
+    Settings and give the execution consent. Polymarket: HiveTrade created the
+    bot's deposit wallet with the Hive; the agent saves its address as
+    `POLYMARKET_DEPOSIT_WALLET` (`check_registration`, or from the Hive page) and
+    you send funds to it. No Polymarket sign-in, no wallet app, no key import.
+    The agent runs `dry_run` again.
 11. **Hosting (optional).** The agent calls `get_deploy_guide` and follows the
     `hivetrade-deploy` skill. The hosted job is a scheduled preview with live
     trading off.
@@ -84,7 +86,7 @@ Code project folder, else the current directory.
 | `get_setup_status` | Reports which steps are done: kit, dependencies, `.env` and whether it is private, public signing address, venue, environment, Hive ID, Polymarket deposit wallet, market, live trading flag, and the next step. | none | Return a key or any other secret. |
 | `create_signing_key` | Creates the signing key in `.env` (mode `0600`) and returns the public address. | none | Overwrite an existing `.env`, or show the key. |
 | `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `maxStakeUsd` (1 to 100), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
-| `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`. | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
+| `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`, and for Polymarket the deposit wallet address HiveTrade returns (`POLYMARKET_DEPOSIT_WALLET`, never overwriting a different saved one). | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
 | `set_hive_id` | Writes `BOT_HIVE_ID` to `.env`. For when the automatic lookup is unavailable. | `hiveId` (whole number, 1 or more, required) | Write any other setting. |
 | `get_bot_status` | Confirms the Hive with requests signed by the bot's key (`/api/bot/budget`, `/api/bot/whoami`), so it works for a Private Hive: name, handle, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public. | `environment` (optional) | Return the key, or change `.env`. |
 | `list_strategies` | Explains where the strategy goes and the generic example ideas in this kit. | none | Share HiveTrade's own production strategies (they are not in this kit). |
