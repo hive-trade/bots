@@ -120,7 +120,7 @@ Responses:
 | 404 without that code | | This API does not have the lookup yet. Ask the person for the Hive ID. |
 | 401 | | The signature or time was rejected. Check the computer clock. |
 
-On production, the lookup arrives with HiveTrade's next release. Until then,
+The lookup is live on production and dev. If an API ever answers without it,
 `check_registration` reports it as unavailable and the agent uses `set_hive_id`.
 
 The other signed endpoints are in the [wire contract](protocol.md).
@@ -158,8 +158,8 @@ exact signing address each time, by pressing Create yourself.
 - **The server shows as failed in `/mcp` on the first session.** The plugin
   installs its dependencies when the session starts, which can take about a
   minute. Reconnect `hivetrade-bot` in `/mcp` once it is done.
-- **"Lookup unavailable".** The API does not have the signed lookup yet (production
-  until HiveTrade's next release). Give the agent the Hive ID the page showed after
+- **"Lookup unavailable".** The API answered without the signed lookup (check
+  `BOT_API_URL` points at HiveTrade). Give the agent the Hive ID the page showed after
   Create; it calls `set_hive_id`.
 - **`BOT_NOT_REGISTERED` after you pressed Create.** The signing address on the
   form was changed, or the Hive was created on the other environment. Compare the

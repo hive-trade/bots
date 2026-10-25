@@ -210,7 +210,7 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 
 ## Documentation and support
 
-- [Public setup docs](https://hivetrade-docs.vercel.app/run-a-bot/custom)
+- [Public setup docs](https://docs.hivetrade.com/run-a-bot/custom)
 - [HiveTrade docs: set up with your AI agent](https://docs.hivetrade.com/run-a-bot/agent)
 - [Set up with an AI agent](docs/agent-setup.md)
 - [Wire contract](docs/protocol.md)
