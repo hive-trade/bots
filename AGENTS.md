@@ -16,7 +16,9 @@ Ask for venue, Hive name, exact market (a polymarket.com link is fine:
 `npm run find-market -- <link>` gives the market slug; an event link lists its
 markets for the person to pick), category, strategy in plain language,
 spending limit and local/hosted preference. Explain the example's limitations.
-Only supported Kalshi directional series work today. Do not invent general venue
+Kalshi: only markets in the series listed at https://docs.hivetrade.com/run-a-bot/kalshi
+work (copied in lib/kalshi-markets.mjs); use KALSHI_SERIES for a series whose
+markets close quickly. Do not invent general venue
 support, automatic withdrawals, redemption, profitability or daily platform caps.
 
 1. Use Node 24+ and npm ci. The PERSON creates the signing key: tell them to run

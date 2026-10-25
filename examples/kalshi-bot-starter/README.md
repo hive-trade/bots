@@ -26,8 +26,9 @@ account; the example does not hold an RSA key, submit a second venue order or
 report a Polymarket-style fill.
 
 The dry run reads public market data, checks once and exits. It is not a demo
-exchange and does not place orders. Only `KXBTC15M`, `KXETH15M`, and `KXSOL15M`
-series currently pass the bot API gate. The generic price-limit example is not
+exchange and does not place orders. Only markets in the series listed at
+https://docs.hivetrade.com/run-a-bot/kalshi pass the bot API gate (set
+`KALSHI_TICKER`, or `KALSHI_SERIES` for the market of a series open right now). The generic price-limit example is not
 a forecast; implement your own idea in root `strategy.mjs`.
 
 Keep the journal on persistent storage. See [recovery](../../docs/recovery.md)

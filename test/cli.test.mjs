@@ -35,7 +35,11 @@ function publicFetchFixture(dir) {
       if (options.method && options.method !== 'GET') throw new Error('WRITE REQUEST FORBIDDEN');
       let body;
       if (url.includes('builder-config')) body = { kalshiApiBase: 'https://api.elections.kalshi.com/trade-api/v2' };
-      else if (url.includes('/markets/KX')) body = {market:{ticker:'KXBTC15M-EXAMPLE',title:'BTC up in 15 minutes?',status:'active',close_time:'2099-01-01T00:00:00Z',yes_ask_dollars:'0.40',no_ask_dollars:'0.60'}};
+      else if (url.includes('/markets?series_ticker=KXBTC15M')) body = {markets:[{ticker:'KXBTC15M-OLD',status:'active',open_time:'2000-01-01T00:00:00Z',close_time:'2000-01-01T00:15:00Z'},{ticker:'KXBTC15M-EXAMPLE',status:'active',open_time:'2000-01-01T00:00:00Z',close_time:'2099-01-01T00:00:00Z'},{ticker:'KXBTC15M-NEXT',status:'active',open_time:'2098-12-31T23:45:00Z',close_time:'2099-01-01T00:15:00Z'}]};
+      else if (url.includes('/markets?series_ticker=KXEPLGAME')) body = {markets:[{ticker:'KXEPLGAME-A-X',status:'active',close_time:'2099-01-01T00:00:00Z'},{ticker:'KXEPLGAME-B-Y',status:'active',close_time:'2099-01-02T00:00:00Z'}]};
+      else if (url.includes('/markets/KXBTC15M-CLOSED')) body = {market:{ticker:'KXBTC15M-CLOSED',title:'BTC up?',status:'closed',close_time:'2026-10-25T12:00:00Z',yes_ask_dollars:'0.40',no_ask_dollars:'0.60'}};
+      else if (url.includes('/markets/KXBTC15M-NOPE')) return new Response('{}', {status:404,headers:{'Content-Type':'application/json'}});
+      else if (url.includes('/markets/KX')) body = {market:{ticker:url.split('/markets/')[1],title:'BTC up in 15 minutes?',status:'active',close_time:'2099-01-01T00:00:00Z',yes_ask_dollars:'0.40',no_ask_dollars:'0.60'}};
       else if (url.includes('gamma-api')) body = [{slug:'example',question:'Example market?',active:true,acceptingOrders:true,conditionId:'0x'+'ab'.repeat(32),outcomes:'["No","Yes"]',clobTokenIds:'["2","1"]',negRisk:false}];
       else if (url.includes('/book?')) body = { asks:[{price:'0.40',size:'3'}] };
       else throw new Error('Unexpected URL');
@@ -110,7 +114,7 @@ test('a stop names the setting to fix and mentions the journal only when there i
     [{ VENUE: 'polymarket', MARKET_SLUG: '' }, /MARKET_SLUG is not set/],
     [{ VENUE: 'polymarket', MARKET_SLUG: 'https://polymarket.com/event/x' }, /MARKET_SLUG is a link, not a slug\. Run npm run find-market/],
     [{ VENUE: 'polymarket', STAKE_USD: '5' }, /stake \(\$5\) is above MAX_STAKE_USD \(\$1\)/],
-    [{ VENUE: 'kalshi', KALSHI_TICKER: 'BTC' }, /KALSHI_TICKER must be an exact/],
+    [{ VENUE: 'kalshi', KALSHI_TICKER: 'BTC' }, /KALSHI_TICKER must be an exact ticker/],
     [{ VENUE: 'polymarket', FIXTURE_DECISION: 'throw' }, /Your strategy threw an error: my data feed is empty/],
   ];
   for (const [env, message] of cases) {
@@ -121,6 +125,27 @@ test('a stop names the setting to fix and mentions the journal only when there i
   }
   mkdirSync(join(dir, 'state')); writeFileSync(join(dir, 'state', 'journal.json'), '[]');
   assert.match(runBot(dir, { VENUE: '' }).stderr, /reconcile state\/journal\.json/);
+});
+test('Kalshi: any accepted series works, KALSHI_SERIES picks the open market, a closed one says so', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-kalshi-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const soccer = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXEPLGAME-26OCT25ARSCHE-ARS', MAX_STAKE_USD: '1' });
+  assert.equal(soccer.status, 0, soccer.stderr); assert.match(soccer.stdout, /"market":"KXEPLGAME-26OCT25ARSCHE-ARS"/);
+  // One contract at a 45-cent cap: $0.45 + fee ceil(7 x 45 x 55 / 10000) cents = $0.47.
+  assert.match(soccer.stdout, /^TRACE cost of one Call on Kalshi: at most \$0\.47 = 1 contract x \$0\.45 price cap \(\$0\.45\) \+ Kalshi fee up to \$0\.02$/m);
+  const series = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: '', KALSHI_SERIES: 'KXBTC15M' });
+  assert.equal(series.status, 0, series.stderr);
+  assert.match(series.stdout, /TRACE KALSHI_SERIES KXBTC15M: the market open right now is KXBTC15M-EXAMPLE/);
+  assert.match(series.stdout, /"market":"KXBTC15M-EXAMPLE"/);
+  const many = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: '', KALSHI_SERIES: 'KXEPLGAME' });
+  assert.notEqual(many.status, 0); assert.match(many.stderr, /2 KXEPLGAME markets are open at once, so the bot cannot pick one for you/);
+  const closed = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXBTC15M-CLOSED' });
+  assert.notEqual(closed.status, 0);
+  assert.match(closed.stderr, /The market in KALSHI_TICKER has closed \(it closed at 2026-10-25T12:00:00\.000Z\)\..*KALSHI_SERIES=KXBTC15M/);
+  assert.match(runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXBTC15M-NOPE' }).stderr, /no market with the ticker/);
+  assert.match(runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXNFLGAMETD-X' }).stderr, /series HiveTrade's bot API accepts/, 'series match is exact, not a prefix');
+  assert.match(runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: '', KALSHI_SERIES: 'KXNOPE' }).stderr, /KALSHI_SERIES is not a series/);
+  assert.match(runBot(dir, { VENUE: 'kalshi', KALSHI_SERIES: 'KXBTC15M' }).stderr, /not both/);
 });
 test('kit tests do not depend on the rule in strategy.mjs', t => {
   // A person replaces strategy.mjs with a rule that would never match the

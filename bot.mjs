@@ -6,6 +6,7 @@ import { discoverPolymarket, preparePolymarket } from './lib/polymarket.mjs';
 import { strategy } from './strategy.mjs';
 import { execute } from './lib/run.mjs';
 import { SafeError, stopMessage } from './lib/errors.mjs';
+import { isSupportedKalshiTicker, isSupportedKalshiSeries, kalshiSeriesOf, pickOpenMarket } from './lib/kalshi-markets.mjs';
 let stage = 'configuration';
 const price = p => (Number.isFinite(p) ? `$${p.toFixed(3).replace(/0$/, '')}` : 'no ask');
 // The strategy may explain itself: `reasons` is a list of short text lines,
@@ -22,13 +23,32 @@ async function main() {
   let market;
   if (cfg.venue === 'polymarket') market = await discoverPolymarket(process.env.MARKET_SLUG);
   else {
-    const ticker = process.env.KALSHI_TICKER ?? '';
-    if (!/^KX(BTC|ETH|SOL)15M-[A-Z0-9-]+$/.test(ticker)) throw new SafeError('KALSHI_TICKER must be an exact KXBTC15M, KXETH15M or KXSOL15M ticker. Set it in .env.');
+    const series = process.env.KALSHI_SERIES ?? '';
+    let ticker = process.env.KALSHI_TICKER ?? '';
+    const docs = 'See the list at https://docs.hivetrade.com/run-a-bot/kalshi.';
+    if (series && ticker) throw new SafeError('Set KALSHI_TICKER (one fixed market) or KALSHI_SERIES (the market of that series open right now), not both.');
+    if (series && !isSupportedKalshiSeries(series)) throw new SafeError(`KALSHI_SERIES is not a series HiveTrade's bot API accepts. ${docs}`);
+    if (!series && !isSupportedKalshiTicker(ticker)) throw new SafeError(`KALSHI_TICKER must be an exact ticker in a series HiveTrade's bot API accepts (or set KALSHI_SERIES instead). ${docs}`);
     const { kalshiApiBase } = await jsonRequest(`${cfg.api}/api/bot/builder-config`);
     const base = new URL(kalshiApiBase);
     if (base.protocol !== 'https:' || !['api.elections.kalshi.com', 'external-api.kalshi.com'].includes(base.hostname) || base.username || base.password) throw new Error('Unexpected Kalshi API base');
-    const { market: m } = await jsonRequest(`${base.href.replace(/\/$/, '')}/markets/${encodeURIComponent(ticker)}`);
-    if (!m || m.ticker !== ticker || m.status !== 'active' || Date.parse(m.close_time) <= Date.now() || !Number.isFinite(Date.parse(m.close_time))) throw new SafeError('The market in KALSHI_TICKER is not open. Choose a currently open ticker.');
+    const kalshi = base.href.replace(/\/$/, '');
+    if (series) {
+      const { markets } = await jsonRequest(`${kalshi}/markets?series_ticker=${encodeURIComponent(series)}&status=open&limit=200`);
+      const picked = pickOpenMarket(markets, series);
+      if (!picked.ticker && picked.open.length === 0) throw new SafeError(`No ${series} market is open right now. Try again when the next one opens.`);
+      if (!picked.ticker) throw new SafeError(`${picked.open.length} ${series} markets are open at once, so the bot cannot pick one for you. Set KALSHI_TICKER to the one your rule trades (and empty KALSHI_SERIES). Open now: ${picked.open.slice(0, 10).join(', ')}${picked.open.length > 10 ? ', ...' : ''}`);
+      ticker = picked.ticker;
+      console.log(`TRACE KALSHI_SERIES ${series}: the market open right now is ${ticker}`);
+    }
+    let m;
+    try { ({ market: m } = await jsonRequest(`${kalshi}/markets/${encodeURIComponent(ticker)}`)); }
+    catch (error) { if (/HTTP 404/.test(String(error?.message))) throw new SafeError('Kalshi has no market with the ticker in KALSHI_TICKER. Check it for typos.'); throw error; }
+    const closes = Date.parse(m?.close_time);
+    if (m?.ticker === ticker && (m.status !== 'active' || !(closes > Date.now()))) {
+      throw new SafeError(`The market in KALSHI_TICKER has closed${Number.isFinite(closes) ? ` (it closed at ${new Date(closes).toISOString()})` : ''}. A fixed ticker trades one market only; 15-minute markets close every 15 minutes. Set a new open ticker, or set KALSHI_SERIES=${kalshiSeriesOf(ticker)} (and empty KALSHI_TICKER) to use that series' market open right now.`);
+    }
+    if (!m || m.ticker !== ticker || !Number.isFinite(closes)) throw new SafeError('Kalshi returned an unexpected answer for this ticker.');
     market = { id: ticker, ticker, question: m.title,
       yesAsk: m.yes_ask_dollars != null ? Number(m.yes_ask_dollars) : Number(m.yes_ask) / 100,
       noAsk: m.no_ask_dollars != null ? Number(m.no_ask_dollars) : Number(m.no_ask) / 100 };
@@ -52,6 +72,8 @@ async function main() {
     if (cents < 1) throw new SafeError('Your strategy\'s maxPrice is under one cent, the lowest Kalshi price.');
     signal = { ...signal, execution: 'hivetrade-v1', kalshiTicker: market.ticker,
       kalshiContracts: contracts, kalshiPriceCents: cents, stakeUsd: kalshiStake(contracts, cents) };
+    const orderUsd = contracts * cents / 100;
+    console.log(`TRACE cost of one Call on Kalshi: at most $${signal.stakeUsd.toFixed(2)} = ${contracts} contract${contracts === 1 ? '' : 's'} x $${(cents / 100).toFixed(2)} price cap ($${orderUsd.toFixed(2)}) + Kalshi fee up to $${(signal.stakeUsd - orderUsd).toFixed(2)}`);
   } else signal = { ...signal, conditionId: market.conditionId, orderType: 'marketable', stakeUsd: positive(process.env.STAKE_USD ?? 1, 'STAKE_USD') };
   if (signal.stakeUsd > cfg.maxStake) throw new SafeError(`This trade's stake ($${signal.stakeUsd}) is above MAX_STAKE_USD ($${cfg.maxStake}). ${cfg.venue === 'kalshi' ? 'KALSHI_CONTRACTS at this price' : 'STAKE_USD'} must fit the cap you chose.`);
   console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: decision.maxPrice, maximumStakeUsd: signal.stakeUsd }));

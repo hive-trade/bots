@@ -37,7 +37,8 @@ on when it passes. If a check fails, explain what is missing in plain words.
 
 Ask, reusing anything already said:
 1. Venue: **Kalshi** (shorter: HiveTrade executes with the user's connected Kalshi
-   key; only `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers today) or **Polymarket**
+   key; only markets in the series listed at docs.hivetrade.com/run-a-bot/kalshi,
+   set as `KALSHI_TICKER` or, for fast series like `KXBTC15M`, `KALSHI_SERIES`) or **Polymarket**
    (Hive creation and dry runs work; live trading for new bots is not self-serve
    yet, they will trade from the user's own HiveTrade account).
 2. Bot name (3 to 40 characters), a one-line description, and a category.

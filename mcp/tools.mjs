@@ -86,7 +86,7 @@ export function setupStatus({ dir, deps }) {
       status.polymarketDepositWallet = ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null;
       status.market = env.MARKET_SLUG || null;
     }
-    if (env.VENUE === 'kalshi') status.market = env.KALSHI_TICKER || null;
+    if (env.VENUE === 'kalshi') status.market = env.KALSHI_TICKER || (env.KALSHI_SERIES ? `series ${env.KALSHI_SERIES} (the market open right now)` : null);
     status.liveTradingEnabled = env.BOT_LIVE_TRADING_ENABLED ?? 'false (unset)';
   }
   status.nextStep = !kit ? 'Clone https://github.com/hive-trade/bots into this folder and run npm ci.'
@@ -281,7 +281,7 @@ export function listStrategies() {
     'The example rule\'s tests are in test/example-strategy.test.mjs: replace that file with tests for the new rule. The other test files test the kit and never load strategy.mjs.',
     'The included rule is an educational price limit (EXAMPLE_SIDE + EXAMPLE_MAX_PRICE). It has no predictive edge.',
     'Read strategy-playbook.md for generic ideas (price limit, your own probability estimate versus the ask, observation-only) and what to decide first: exact market, resolution source, data freshness, price limit, budget, failure behavior.',
-    'Entry points: bot.mjs (shared runner), examples/bot-starter/bot.mjs (Polymarket), examples/kalshi-bot-starter/ (Kalshi; only KXBTC15M, KXETH15M and KXSOL15M tickers are accepted today).',
+    'Entry points: bot.mjs (shared runner), examples/bot-starter/bot.mjs (Polymarket), examples/kalshi-bot-starter/ (Kalshi). Kalshi markets: the series HiveTrade\'s bot API accepts are listed at https://docs.hivetrade.com/run-a-bot/kalshi (copied in lib/kalshi-markets.mjs). Set KALSHI_TICKER for one fixed market, or KALSHI_SERIES to use the market of that series open right now (only when exactly one is open).',
     'Keep execution code separate from the strategy, and add tests for stale or missing data. HiveTrade\'s own production strategies are private and not part of this kit.',
   ].join('\n');
 }

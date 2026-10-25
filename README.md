@@ -174,11 +174,19 @@ failed preflight, not permission to bypass a restriction.
 1. Set `VENUE=kalshi`.
 2. Have an eligible, funded Kalshi account. Connect your Kalshi API key in
    HiveTrade Settings and complete the required execution consent.
-3. Choose an exact currently open `KXBTC15M`, `KXETH15M`, or `KXSOL15M` ticker.
-   These are the series currently accepted by HiveTrade's bot API; arbitrary
-   sports, politics, and other Kalshi tickers are not supported by this integration.
-4. Set `KALSHI_TICKER` and `KALSHI_CONTRACTS` (one whole contract initially).
-   Maximum stake includes the API's fee allowance and must fit both spending caps.
+3. Choose the market. HiveTrade's bot API accepts markets in about 190 Kalshi
+   series (crypto, sports, elections, economics, weather and more), listed at
+   [Markets the bot API accepts](https://docs.hivetrade.com/run-a-bot/kalshi);
+   the kit carries the same list in `lib/kalshi-markets.mjs`. Then set one of:
+   - `KALSHI_TICKER`: one exact open market. It trades that market only, and
+     stops with "has closed" once the market closes.
+   - `KALSHI_SERIES` (for example `KXBTC15M`): each run uses the market of that
+     series that is open right now. Useful for 15-minute series, whose markets
+     close every 15 minutes. If several markets of the series are open at once,
+     it lists them and you set `KALSHI_TICKER` to the one your rule trades.
+4. Set `KALSHI_CONTRACTS` (whole contracts; start with one). One Call costs at
+   most contracts x price cap + Kalshi's fee, and the dry run prints that sum.
+   It must fit both spending caps.
 
 Only the platform signing key goes in `.env`. HiveTrade submits the Captain order;
 do not add a second local Kalshi order or a Polymarket-style fill report.
