@@ -100,6 +100,15 @@ async function main() {
     stage = 'Polymarket price step lookup';
     signal.limitPrice = await operatorLimitPrice(market, decision);
   } else if (cfg.venue === 'polymarket') {
+    // Legacy: the bot places its own order ONLY while HiveTrade says this Hive
+    // is still self-managed. Any other answer (operator, hivetrade, a mode this
+    // kit does not know) means never place an order yourself.
+    stage = 'Hive mode check';
+    const mode = await readBotConfig({ account, api: cfg.api });
+    if (mode.hiveId !== cfg.hiveId) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID.');
+    if (mode.pmCaptainExecution !== 'self') throw new SafeError(mode.pmCaptainExecution === 'operator'
+      ? 'This Hive now trades from your own HiveTrade account. Remove POLYMARKET_LEGACY_SELF_MANAGED and POLYMARKET_DEPOSIT_WALLET from .env, then run again.'
+      : 'HiveTrade does not run this Hive as a self-managed bot, so this bot must not place its own order. Nothing was sent.');
     stage = 'Polymarket order preparation (legacy self-managed bot)';
     submitOrder = await preparePolymarket(account, cfg, market, decision, signal.stakeUsd);
   }
