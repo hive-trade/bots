@@ -242,27 +242,35 @@ order retries. See [recovery](docs/recovery.md) before restarting after a failur
 
 ## Hosting and extending
 
-Local execution stops when the computer sleeps or the process exits. A server
-can run scheduled checks while your computer is off; review the host's current
-pricing and job schedule before deploying. Keep your strategy in a repository
-you control and choose its visibility deliberately.
+**Today the guided server setup runs practice only.** The Railway helper
+([guide](docs/railway.md), skill
+[`skills/hivetrade-deploy/SKILL.md`](skills/hivetrade-deploy/SKILL.md)) deploys
+scheduled **dry runs**: the server checks your market on a timer, with live
+trading always off and no signing key. It cannot place real orders, even if you
+change a setting on the server. Real trading works only on your own computer
+today (step 5). Your decision trace (`TRACE` lines) shows only in local runs; the
+server prints a short completion line instead, so your strategy's output never
+reaches a host's logs.
 
-`railway.json` starts `node bot.mjs` using the host's environment variables, so
-no uploaded `.env` file is needed. It disables automatic restarts: an uncertain
-trade must be reconciled, not restarted in a loop. Node 24+ is declared in
-`package.json`. Set up a persistent volume and scheduling explicitly; this config
-does not turn the one-shot example into a continuous strategy.
+Local execution stops when the computer sleeps or the process exits. Review the
+host's current pricing before deploying: a server costs money even for practice.
+`npm run railway -- plan <config>.json` checks a config before you have a Railway
+project; `deploy` and `verify` then need the three Railway UUIDs. Keep your
+strategy in a repository you control and choose its visibility deliberately.
 
-Use one runner instance and a persistent volume for `STATE_DIR`. A redeploy must
-keep the journal; an empty new volume loses duplicate protection. Configure
-secrets through your hosting provider's secret settings, never a Dockerfile or
-Git repository. Moving the private key to a server is an explicit user choice.
+Building your own live server setup is outside what this kit guides. If you do,
+`railway.json` starts `node bot.mjs` from the host's environment variables and
+disables automatic restarts (an uncertain trade must be reconciled, not
+restarted in a loop). Use one runner instance and a persistent volume for
+`STATE_DIR`: an empty new volume loses duplicate protection. You put the private
+key in the host's secret settings yourself, never in a Dockerfile or Git
+repository; your agent never copies it.
 
-The included command is a one-shot job, not a web service: it has no `/health`
-endpoint. A scheduler may invoke it periodically, but it intentionally will not
-trade the same market twice. For a continuous bot, your agent must add market
-selection, fresh data, exposure and cumulative spending limits, supervision,
-exit/settlement handling, and tests. Do not remove the execution guards to make it run.
+The runner is a one-shot job, not a web service: it has no `/health` endpoint
+and will not trade the same market twice. For a continuous bot, your agent must
+add market selection, fresh data, exposure and cumulative spending limits,
+supervision, exit/settlement handling, and tests. Do not remove the execution
+guards to make it run.
 
 ## Documentation and support
 
@@ -275,11 +283,3 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 Compatibility checked against HiveTrade's current API contract on 2026-09-15.
 Offline tests and dry runs do not certify a funded live account. Report an issue
 with redacted configuration and an error stage; never attach keys or full SDK logs.
-
-### Let an AI agent set up Railway hosting
-
-Give your agent this repository and point it to
-[`skills/hivetrade-deploy/SKILL.md`](skills/hivetrade-deploy/SKILL.md).
-The [deployment guide](docs/railway.md) provides `plan`, `deploy` and `verify`
-commands for a new Railway service, persistent storage and scheduled dry runs.
-It uses your existing Railway CLI login and keeps live trading disabled.

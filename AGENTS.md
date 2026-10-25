@@ -43,8 +43,8 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
 5. The user decides whether to enable real orders. Follow your agent's own rules
    for financial actions. Dry runs, tests and a setup request do not authorize a
    real-money test. Never relax caps or clear unresolved journal entries to retry.
-6. When hosting is requested, preserve state with a persistent volume and one
-   instance. Explain the key will reside on that host and use its secret store.
+6. When hosting is requested, explain first that the guided server setup is
+   practice only today. Preserve state with a persistent volume and one instance.
 
 Changes to protocol/execution require tests for failure and ambiguous responses,
 not just successful orders. Update docs when behavior changes. This repo must
@@ -60,3 +60,6 @@ credential. Tool changes need tests in `test/mcp.test.mjs` proving that.
 
 For Railway server setup, follow `skills/hivetrade-deploy/SKILL.md` and
 `docs/railway.md`. Use the public-config deployment helper for scheduled previews.
+Tell the person before they pay for hosting that the hosted job is practice only
+(dry runs, never real orders); real trading works only on their own computer
+today. Do not build a live-trading server path.

@@ -73,8 +73,8 @@ same server, see [Other MCP clients](#other-mcp-clients).
     you send funds to it. No Polymarket sign-in, no wallet app, no key import.
     The agent runs `dry_run` again.
 11. **Hosting (optional).** The agent calls `get_deploy_guide` and follows the
-    `hivetrade-deploy` skill. The hosted job is a scheduled preview with live
-    trading off.
+    `hivetrade-deploy` skill. Today this is practice only: a scheduled dry run
+    that never places real orders. Real trading works only on your computer.
 12. **Live trading (you).** Only you turn it on, and only when you decide to.
 
 ## MCP tool reference

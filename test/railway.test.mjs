@@ -12,6 +12,14 @@ test('offline plan makes no CLI calls; rejects secrets and ambiguous destination
   assert.equal(run('plan', input, undefined, () => assert.fail()).mode, 'dry-run only');
   for (const key of ['BOT_PRIVATE_KEY', 'RAILWAY_TOKEN', 'BOT_LIVE_TRADING_ENABLED', 'STATE_DIR', 'SIGNAL_STRENGTH']) assert.throws(() => validate({ ...input, variables: { ...input.variables, [key]: 'secret' } }));
   assert.throws(() => validate({ ...input, service: 'friendly-name' }));
+  // plan works before the Railway project exists; deploy and verify still refuse placeholders.
+  const example = JSON.parse(readFileSync(new URL('../deploy/railway.example.json', import.meta.url), 'utf8'));
+  const planned = run('plan', example, undefined, () => assert.fail('plan makes no CLI calls'));
+  assert.deepEqual(planned.target, { project: 'not set yet', environment: 'not set yet', service: 'not set yet' });
+  assert.match(planned.beforeDeploy, /deploy refuses/);
+  assert.equal(example.variables.STAKE_USD, example.variables.MAX_STAKE_USD, 'the example spells out the stake');
+  assert.throws(() => run('deploy', example, undefined, () => assert.fail('no CLI call')), /UUID/);
+  assert.throws(() => run('verify', example, deploymentId, () => assert.fail('no CLI call')), /UUID/);
   assert.throws(() => validate({ ...input, intervalMinutes: 1 }));
   assert.throws(() => validate({ ...input, variables: { ...input.variables, MARKET_SLUG: 'bad\nvalue' } }));
 });

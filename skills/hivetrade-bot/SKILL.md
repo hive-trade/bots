@@ -144,7 +144,9 @@ Run `dry_run` again: it should reach `DRY RUN` or `SKIP`.
 
 If the bot should run while the computer is off, follow
 [`skills/hivetrade-deploy/SKILL.md`](../hivetrade-deploy/SKILL.md) (or
-`get_deploy_guide`). The hosted job is a scheduled preview with live trading off.
+`get_deploy_guide`). Tell the user before they pay for hosting: the hosted job
+is practice only, a scheduled dry run that never places real orders. Real trading
+works only on their own computer today.
 
 **Check:** `npm run railway -- verify …` reports a verified dry run.
 

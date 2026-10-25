@@ -15,7 +15,8 @@ Use the existing setup skill for the user's strategy and local bot configuration
    an existing production service. Use their existing CLI authentication; never
    request login tokens or read `.env` into tool output/chat.
 2. Create a public JSON config from `deploy/railway.example.json`. It must contain
-   no credentials. Run `npm ci`, `npm test`, and the helper's `plan` command. Check
+   no credentials. Run `npm ci`, `npm test`, and the helper's `plan` command
+   (it works before the UUIDs exist and lists the missing ones). Check
    the strategy has no private HiveTrade logic and needs only supported runtime files.
 3. When deployment is within the user's request, run the helper's `deploy` command.
    It provisions a volume and uploads a scheduled preview; it always keeps live
@@ -25,8 +26,10 @@ Use the existing setup skill for the user's strategy and local bot configuration
    Report failure honestly. If the upload outcome is unknown, inspect Railway
    before retrying; the service or volume may already exist.
 5. Report the destination, schedule, verification evidence and remaining work.
-   Remind the user that this is a scheduled preview of a fixed market, and that
-   market rollover and live operation are separate implementation decisions.
+   Say plainly, before the user pays for hosting, that this is practice only: a
+   scheduled dry run of a fixed market that never places real orders, and that
+   the decision trace is visible only in local runs. Live trading on a server is
+   not available through this kit today; do not build one.
 
 Do not obtain bot keys, invoke live orders, expose full remote logs, or modify an
 existing service as an implicit hosting test. The script intentionally has no live

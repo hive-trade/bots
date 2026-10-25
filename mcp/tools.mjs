@@ -308,7 +308,8 @@ export function deployGuide() {
   return [
     'Hosting guide: docs/railway.md, skill: skills/hivetrade-deploy/SKILL.md.',
     'npm run railway -- plan|deploy|verify <public config>.json sets up a NEW empty Railway service with a /data volume, one replica, no restarts and a cron schedule (5 to 60 minutes).',
-    'The hosted job is a scheduled preview: it always runs with live trading off and is given no signing key. Verify with the deployment UUID after a scheduled run.',
+    'Practice only: the hosted job is a scheduled dry run that always runs with live trading off and is given no signing key, so it never places a real order. Say so before the person pays for hosting. Real trading works only on their own computer today. Verify with the deployment UUID after a scheduled run.',
+    'npm run railway -- plan works before the Railway UUIDs exist and lists the missing ones.',
     'The public config file holds public settings only. Never put .env contents, keys or tokens in it.',
     'Running live on a server is a separate decision by the person. If they make it, THEY set BOT_PRIVATE_KEY in the host\'s secret settings dashboard themselves. An agent never copies, uploads or types the key.',
     'Keep one instance and a persistent volume for STATE_DIR so duplicate protection survives redeploys.',
