@@ -4,19 +4,23 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as botConfig } from '../lib/config.mjs';
+import { isSupportedKalshiTicker, isSupportedKalshiSeries } from '../lib/kalshi-markets.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
-export function validate(input) {
+const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_SERIES', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
+// plan may run before the Railway project exists (requireTargets: false): it
+// checks everything else and reports the missing UUIDs. deploy and verify
+// always require all three.
+export function validate(input, { requireTargets = true } = {}) {
   if (!input || Object.keys(input).some(k => !['project', 'environment', 'service', 'intervalMinutes', 'variables'].includes(k))) throw new Error('Unknown deployment configuration field');
-  for (const key of ['project', 'environment', 'service']) if (!uuid.test(input[key] ?? '')) throw new Error(`Set an explicit Railway ${key} UUID`);
+  if (requireTargets) for (const key of ['project', 'environment', 'service']) if (!uuid.test(input[key] ?? '')) throw new Error(`Set an explicit Railway ${key} UUID`);
   if (![5, 10, 15, 20, 30, 60].includes(input.intervalMinutes)) throw new Error('intervalMinutes must be 5, 10, 15, 20, 30 or 60');
   const variables = input.variables;
   if (!variables || Array.isArray(variables) || typeof variables !== 'object') throw new Error('Set public bot variables');
   for (const [key, value] of Object.entries(variables)) if (!allowed.has(key) || typeof value !== 'string' || value.length > 250 || /[\r\n\0]/.test(value)) throw new Error('Unsupported variable or value; never put credentials in this file');
   botConfig(variables);
-  if (variables.VENUE === 'kalshi' && !/^KX(BTC|ETH|SOL)15M-[A-Z0-9-]+$/.test(variables.KALSHI_TICKER ?? '')) throw new Error('Set an exact supported Kalshi ticker');
+  if (variables.VENUE === 'kalshi' && !(isSupportedKalshiTicker(variables.KALSHI_TICKER) || isSupportedKalshiSeries(variables.KALSHI_SERIES))) throw new Error('Set an exact supported KALSHI_TICKER or a supported KALSHI_SERIES');
   if (variables.VENUE === 'polymarket' && !/^[a-z0-9-]+$/.test(variables.MARKET_SLUG ?? '')) throw new Error('Set an exact Polymarket market slug');
   if (variables.EXAMPLE_SIDE && !['yes', 'no'].includes(variables.EXAMPLE_SIDE)) throw new Error('EXAMPLE_SIDE must be yes or no');
   if (variables.EXAMPLE_MAX_PRICE && !(Number(variables.EXAMPLE_MAX_PRICE) > 0 && Number(variables.EXAMPLE_MAX_PRICE) <= 0.99)) throw new Error('Invalid EXAMPLE_MAX_PRICE');
@@ -62,8 +66,13 @@ export function verifyLogs(raw, deploymentId) {
   });
 }
 export function run(command, input, deploymentId, exec = cli, source = root) {
-  const c = validate(input);
-  if (command === 'plan') return { target: { project: c.project, environment: c.environment, service: c.service }, intervalMinutes: c.intervalMinutes, mode: 'dry-run only', volume: '/data', upload: 'bot.mjs, strategy.mjs, package files, lib/*.mjs, preview wrapper; no .env or local state' };
+  const c = validate(input, { requireTargets: command !== 'plan' });
+  if (command === 'plan') {
+    const missing = ['project', 'environment', 'service'].filter(key => !uuid.test(c[key] ?? ''));
+    const target = Object.fromEntries(['project', 'environment', 'service'].map(key => [key, missing.includes(key) ? 'not set yet' : c[key]]));
+    return { target, intervalMinutes: c.intervalMinutes, mode: 'dry-run only', volume: '/data', upload: 'bot.mjs, strategy.mjs, package files, lib/*.mjs, preview wrapper; no .env or local state',
+      ...(missing.length ? { beforeDeploy: `Replace the ${missing.join(', ')} placeholder${missing.length > 1 ? 's' : ''} with the Railway UUIDs. deploy refuses until then.` } : {}) };
+  }
   if (!['deploy', 'verify'].includes(command)) throw new Error('Use plan, deploy or verify');
   if (command === 'verify') {
     if (!uuid.test(deploymentId ?? '')) throw new Error('Supply the deployment UUID returned by deploy');

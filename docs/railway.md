@@ -4,6 +4,8 @@ Give your agent this repository and ask:
 
 > Follow skills/hivetrade-deploy/SKILL.md to deploy my example bot to a new Railway service. Use my existing Railway CLI login. Help me select the project, environment, market and schedule, then verify a hosted dry run.
 
+**This helper runs practice only: scheduled dry runs that never place a real
+order.** Live trading on a server is not available through the kit today.
 This helper sets up **scheduled previews**. It does not sign in to HiveTrade,
 transfer private keys or enable live trading. It contains no private HiveTrade
 strategy. A successful preview proves the example ran and could write to the
@@ -17,8 +19,8 @@ attached volume; it does not prove trading profitability or live execution.
 - A **new empty service** in your chosen Railway project and environment. Create
   it in Railway's dashboard, then copy all three UUIDs from its settings/URLs.
   Do not use the HiveTrade API service or any existing bot service.
-- Your own strategy in `strategy.mjs`, an actual Hive ID and an open supported
-  market. Read the main README for local setup. A preview needs no bot key.
+- Your own strategy in `strategy.mjs` and an open supported market. A preview
+  needs no bot key and no Hive ID. Read the main README for local setup.
 
 ## Configure and review
 
@@ -31,6 +33,11 @@ remove `MARKET_SLUG`. Values inside `variables` are strings.
 npm run railway -- plan deploy/railway.local.json
 npm test
 ```
+
+`plan` makes no Railway calls and works with the placeholder UUIDs still in the
+file, so you can check the config before creating a Railway account or project.
+It lists which UUIDs are still missing; `deploy` refuses until all three are set.
+Set `STAKE_USD` and `MAX_STAKE_USD` to the amounts you chose.
 
 Choose `intervalMinutes` from 5, 10, 15, 20, 30 or 60. Schedules run in UTC.
 Railway cron is approximate and can vary by minutes; it is unsuitable for precise

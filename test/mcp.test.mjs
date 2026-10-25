@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
 import { recoverMessageAddress } from 'viem';
 import { TOOLS, callTool } from '../mcp/tools.mjs';
+import { createIdentity } from '../lib/setup.mjs';
+import { readPublicSettings, botSigner, publicSigningAddress } from '../mcp/env-file.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const deps = { generatePrivateKey, privateKeyToAccount };
 const SECRET = /0x[0-9a-fA-F]{64}/;
@@ -18,6 +20,8 @@ function kit(t, botSource = 'console.log("fixture")') {
   writeFileSync(join(dir, 'bot.mjs'), botSource);
   return dir;
 }
+// Stands in for the person running npm run setup in their own terminal.
+const makeIdentity = dir => createIdentity({ dir, template: readFileSync(join(dir, '.env.example'), 'utf8'), generatePrivateKey, privateKeyToAccount });
 const text = result => result.content.map(c => c.text).join('\n');
 const json = result => { assert.ok(!result.isError, text(result)); return JSON.parse(text(result)); };
 const keyOf = dir => readFileSync(join(dir, '.env'), 'utf8').match(/BOT_PRIVATE_KEY=(.*)/)[1];
@@ -26,38 +30,67 @@ const fetchReturning = (status, body, calls = []) => async (url, options) => {
   return new Response(body === undefined ? 'not json' : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 };
 
-test('the tool list has no way to post a Call, enable live trading, fund or touch credentials', () => {
+test('the tool list has no way to post a Call, enable live trading, fund, create a key or touch credentials', () => {
   const names = TOOLS.map(t => t.name);
-  assert.deepEqual(names, ['get_setup_status', 'create_signing_key', 'prepare_registration', 'check_registration', 'set_hive_id', 'get_bot_status', 'list_strategies', 'get_deploy_guide', 'dry_run']);
-  for (const name of names) assert.doesNotMatch(name, /signal|live|fund|withdraw|credential|order|trade/);
+  assert.deepEqual(names, ['get_setup_status', 'get_signing_key_command', 'update_settings', 'prepare_registration', 'check_registration', 'set_hive_id', 'get_bot_status', 'find_market', 'list_strategies', 'get_deploy_guide', 'dry_run']);
+  for (const name of names) assert.doesNotMatch(name, /signal|live|fund|withdraw|credential|order|trade|create/);
 });
 
-test('create_signing_key returns only the public address, writes 0600 and never overwrites', async t => {
+test('get_signing_key_command creates nothing: it tells the person to run npm run setup themselves', async t => {
+  // Owner 2026-10-25: the person creates the key, the agent never runs the command.
   const dir = kit(t);
-  const created = await callTool('create_signing_key', {}, { dir, deps });
-  assert.doesNotMatch(text(created), SECRET);
-  const key = keyOf(dir);
-  assert.match(key, /^0x[0-9a-f]{64}$/);
-  assert.equal(json(created).signingAddress, privateKeyToAccount(key).address);
-  assert.equal(statSync(join(dir, '.env')).mode & 0o777, 0o600);
-  const before = readFileSync(join(dir, '.env'), 'utf8');
-  const again = await callTool('create_signing_key', {}, { dir, deps });
-  assert.ok(again.isError); assert.match(text(again), /already exists/);
-  assert.equal(readFileSync(join(dir, '.env'), 'utf8'), before);
+  const out = json(await callTool('get_signing_key_command', {}, { dir, deps }));
+  assert.equal(out.done, false); assert.equal(out.command, 'npm run setup');
+  assert.ok(out.tellThePerson.some(line => line.includes('npm run setup')));
+  assert.match(out.agentRules, /Do not run the command yourself/);
+  assert.ok(!existsSync(join(dir, '.env')), 'no key was created');
+  assert.equal(json(await callTool('get_signing_key_command', { environment: 'dev' }, { dir, deps })).command, 'npm run setup -- --dev');
+  makeIdentity(dir);
+  const done = await callTool('get_signing_key_command', {}, { dir, deps });
+  assert.doesNotMatch(text(done), SECRET);
+  assert.equal(json(done).signingAddress, privateKeyToAccount(keyOf(dir)).address);
 });
 
-test('create_signing_key refuses a folder that is not the kit', async t => {
+test('get_signing_key_command refuses a folder that is not the kit', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'hivetrade-empty-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const result = await callTool('create_signing_key', {}, { dir, deps });
+  const result = await callTool('get_signing_key_command', {}, { dir, deps });
   assert.ok(result.isError); assert.ok(!existsSync(join(dir, '.env')));
+});
+
+test('.env helpers never hand the key to a tool: settings omit it, the signer exposes only the address', t => {
+  const dir = kit(t);
+  makeIdentity(dir);
+  const key = keyOf(dir);
+  const settings = readPublicSettings(dir);
+  assert.ok(!('BOT_PRIVATE_KEY' in settings)); assert.ok(!JSON.stringify(settings).includes(key)); assert.equal(settings.signingKeyPresent, true);
+  const signer = botSigner(dir, privateKeyToAccount);
+  assert.deepEqual(Object.keys(signer).sort(), ['address', 'signMessage']);
+  assert.ok(!JSON.stringify(signer).includes(key.slice(2)));
+  assert.equal(publicSigningAddress(dir, privateKeyToAccount), privateKeyToAccount(key).address);
+  assert.throws(() => botSigner(dir, undefined), /dependencies are not loaded/);
+});
+
+test('update_settings changes public settings only, so the agent never opens .env', async t => {
+  const dir = kit(t);
+  assert.ok((await callTool('update_settings', { settings: { MARKET_SLUG: 'x' } }, { dir, deps })).isError, 'no .env yet');
+  makeIdentity(dir);
+  const before = readFileSync(join(dir, '.env'), 'utf8');
+  assert.deepEqual(json(await callTool('update_settings', { settings: { MARKET_SLUG: 'my-market', STAKE_USD: 2, STRATEGY_THRESHOLD: '0.2' } }, { dir, deps })).wroteToEnv, ['MARKET_SLUG', 'STAKE_USD', 'STRATEGY_THRESHOLD']);
+  const after = readFileSync(join(dir, '.env'), 'utf8');
+  assert.match(after, /^MARKET_SLUG=my-market$/m); assert.match(after, /^STAKE_USD=2$/m); assert.match(after, /^STRATEGY_THRESHOLD=0\.2$/m);
+  assert.equal(keyOf(dir), before.match(/BOT_PRIVATE_KEY=(.*)/)[1]);
+  for (const settings of [{ BOT_PRIVATE_KEY: '0x1' }, { BOT_LIVE_TRADING_ENABLED: 'true' }, { BOT_HIVE_ID: '3' }, { BOT_API_URL: 'https://example.com' }, { MARKET_SLUG: 'a\nBOT_LIVE_TRADING_ENABLED=true' }, {}]) {
+    assert.ok((await callTool('update_settings', { settings }, { dir, deps })).isError, JSON.stringify(settings));
+  }
+  assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m);
 });
 
 test('get_setup_status reports progress and never includes the key', async t => {
   const dir = kit(t);
   assert.equal(json(await callTool('get_setup_status', {}, { dir, deps })).envFile, false);
   mkdirSync(join(dir, 'node_modules', 'viem'), { recursive: true });
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   const key = keyOf(dir);
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8')
     .replace('VENUE=kalshi', 'VENUE=polymarket').replace('POLYMARKET_DEPOSIT_WALLET=', `POLYMARKET_DEPOSIT_WALLET=0x${'ab'.repeat(20)}`));
@@ -74,7 +107,7 @@ test('get_setup_status reports progress and never includes the key', async t => 
 test('prepare_registration builds the pre-filled link for the local signer and validates locally', async t => {
   const dir = kit(t);
   assert.ok((await callTool('prepare_registration', { name: 'Bot', venue: 'kalshi' }, { dir, deps })).isError); // no .env yet
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   const address = privateKeyToAccount(keyOf(dir)).address;
   const out = json(await callTool('prepare_registration', { name: ' BTC & ETH bot ', bio: 'Buys 15-minute moves + more', category: 'crypto', venue: 'kalshi', maxStakeUsd: 5 }, { dir, deps }));
   const url = new URL(out.url);
@@ -82,6 +115,7 @@ test('prepare_registration builds the pre-filled link for the local signer and v
   assert.deepEqual(Object.fromEntries(url.searchParams), { name: 'BTC & ETH bot', bio: 'Buys 15-minute moves + more', category: 'Crypto', venue: 'kalshi', signer: address, maxStake: '5', from: 'agent' });
   assert.ok(!out.url.includes('+'), 'spaces are encoded as %20');
   assert.ok(out.instructions.some(line => line.includes(address)));
+  assert.ok(!out.instructions.some(line => /tick/i.test(line)), 'a bot Hive has no agreement checkbox to tick');
   assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'polymarket', environment: 'dev' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com');
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('BOT_API_URL=https://api.hivetrade.com', 'BOT_API_URL=https://api-dev.hivetrade.com'));
   assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'kalshi' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com', 'follows BOT_API_URL');
@@ -97,7 +131,7 @@ test('a dev link makes the later lookup ask dev too (the choice is saved in .env
   // link, but check_registration then defaulted to prod and could never find
   // the Hive the person had just created on dev.
   const dir = kit(t);
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'kalshi', environment: 'dev' }, { dir, deps }));
   assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_API_URL=https:\/\/api-dev\.hivetrade\.com$/m);
   const seen = [];
@@ -113,7 +147,7 @@ test('a dev link makes the later lookup ask dev too (the choice is saved in .env
 
 test('check_registration signs whoami and writes BOT_HIVE_ID, keeping other lines and 0600', async t => {
   const dir = kit(t);
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   const key = keyOf(dir);
   const before = readFileSync(join(dir, '.env'), 'utf8').replace('BOT_API_URL=https://api.hivetrade.com', 'BOT_API_URL=https://api-dev.hivetrade.com');
   writeFileSync(join(dir, '.env'), before);
@@ -135,9 +169,24 @@ test('check_registration signs whoami and writes BOT_HIVE_ID, keeping other line
   assert.equal(after, expected);
 });
 
+test('Polymarket: no tool sends the person to fund a bot address; it says live trading is not self-serve yet', async t => {
+  // Owner 2026-10-25: new bots will trade from the owner's own HiveTrade account (API not built yet).
+  const dir = kit(t);
+  makeIdentity(dir);
+  const reg = await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(200, { hiveId: 77, venue: 'polymarket', depositWallet: `0x${'cd'.repeat(20)}` }) });
+  const out = json(reg);
+  assert.ok(!out.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET')); assert.match(out.polymarketLiveTrading, /not self-serve yet/);
+  const status = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 77, maxStakeUsd: 1 }], whoami: [200, { hiveId: 77, venue: 'polymarket' }] }) });
+  assert.match(json(status).polymarketLiveTrading, /own HiveTrade account/);
+  writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('MARKET_SLUG=', 'MARKET_SLUG=my-market'));
+  mkdirSync(join(dir, 'node_modules', 'viem'), { recursive: true });
+  const setup = json(await callTool('get_setup_status', {}, { dir, deps }));
+  for (const line of [JSON.stringify(out), setup.nextStep, text(status)]) assert.doesNotMatch(line, /send funds|fund the bot|deposit wallet address|bind-wallet/i);
+  assert.match(setup.nextStep, /not self-serve yet/);
+});
 test('check_registration explains not-created, missing route and clock skew without writing', async t => {
   const dir = kit(t);
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   const before = readFileSync(join(dir, '.env'), 'utf8');
   const notYet = json(await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(404, { error: 'No bot Hive', code: 'BOT_NOT_REGISTERED' }) }));
   assert.equal(notYet.registered, false); assert.match(notYet.message, /Not created yet/);
@@ -150,9 +199,22 @@ test('check_registration explains not-created, missing route and clock skew with
   assert.equal(readFileSync(join(dir, '.env'), 'utf8'), before);
 });
 
+test('tools called without deps load them, and never call a valid key invalid', async t => {
+  // Found 2026-10-25: a script calling callTool without deps was told '.env has
+  // no valid signing key' for a valid key, which pushes toward a new identity.
+  const dir = kit(t);
+  makeIdentity(dir);
+  const address = privateKeyToAccount(keyOf(dir)).address;
+  const link = json(await callTool('prepare_registration', { name: 'My bot', venue: 'polymarket' }, { dir }));
+  assert.equal(new URL(link.url).searchParams.get('signer'), address);
+  assert.equal(json(await callTool('get_setup_status', {}, { dir })).signingAddress, address);
+  writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace(/BOT_PRIVATE_KEY=.*/, 'BOT_PRIVATE_KEY=0x1234'));
+  const bad = await callTool('prepare_registration', { name: 'My bot', venue: 'polymarket' }, { dir, deps });
+  assert.ok(bad.isError); assert.match(text(bad), /Restore \.env from your backup/);
+});
 test('set_hive_id writes only BOT_HIVE_ID and rejects junk', async t => {
   const dir = kit(t);
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   const before = readFileSync(join(dir, '.env'), 'utf8');
   assert.equal(json(await callTool('set_hive_id', { hiveId: '12' }, { dir, deps })).hiveId, 12);
   assert.equal(readFileSync(join(dir, '.env'), 'utf8'), before.replace('BOT_HIVE_ID=', 'BOT_HIVE_ID=12'));
@@ -160,21 +222,56 @@ test('set_hive_id writes only BOT_HIVE_ID and rejects junk', async t => {
   assert.match(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m);
 });
 
-test('get_bot_status summarizes the public Hive defensively', async t => {
+function statusFetch({ budget = [200, { hiveId: 9, maxStakeUsd: 2, dailyBudgetUsd: 10, remainingUsd: 10, openCallCount: 1, paused: false }],
+  whoami = [200, { hiveId: 9, name: 'BTC bot', handle: 'btc_bot', venue: 'kalshi' }], hive = [404, { error: 'Hive not found' }] } = {}, calls = []) {
+  return async (url, options = {}) => {
+    calls.push({ url, options });
+    const [status, body] = url.endsWith('/api/bot/budget') ? budget : url.endsWith('/api/bot/whoami') ? whoami : hive;
+    return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  };
+}
+test('get_bot_status confirms a Private Hive with the bot\'s signed reads', async t => {
+  // Found 2026-10-25: the public lookup cannot see a Private Hive (the form's
+  // default), and the tool told the person their correct settings were wrong.
   const dir = kit(t);
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
+  const address = privateKeyToAccount(keyOf(dir)).address;
   await callTool('set_hive_id', { hiveId: 9 }, { dir, deps });
   const calls = [];
+  const result = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({}, calls), now: () => 1789480000000 });
+  assert.doesNotMatch(text(result), SECRET);
+  const out = json(result);
+  assert.equal(out.found, true); assert.equal(out.publicPage, false); assert.match(out.note, /Private Hive/);
+  assert.doesNotMatch(text(result), /Check BOT_HIVE_ID/);
+  assert.equal(out.name, 'BTC bot'); assert.equal(out.venue, 'kalshi'); assert.equal(out.perCallCapUsd, 2); assert.equal(out.openCalls, 1);
+  assert.ok(!('dailyBudgetUsd' in out) && !('remainingUsd' in out), 'the legacy daily budget is not a limit, so it is not shown');
+  assert.equal(calls[0].url, 'https://api.hivetrade.com/api/bot/budget'); assert.equal(calls[0].options.method, 'POST');
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(await recoverMessageAddress({ message: 'hivetrade:bot-budget:1789480000000', signature: body.signature }), address);
+});
+test('get_bot_status adds public page data when the Hive is public', async t => {
+  const dir = kit(t);
+  makeIdentity(dir);
+  await callTool('set_hive_id', { hiveId: 9 }, { dir, deps });
   const hive = { id: 9, username: 'btc_bot', displayName: 'BTC bot', executionVenue: 'kalshi', isBot: true, memberCount: 3, resolvedCalls: 4,
     recentMarkets: [{ question: 'old', status: 'resolved', createdAt: '2026-06-01T00:00:00Z', influencerPosition: 'no' },
       { question: 'new', status: 'open', createdAt: '2026-07-01T00:00:00Z', influencerPosition: 'yes' }, null] };
-  const out = json(await callTool('get_bot_status', {}, { dir, deps, fetch: fetchReturning(200, hive, calls) }));
-  assert.equal(calls[0].url, 'https://api.hivetrade.com/api/hives/9'); assert.equal(calls[0].options.method, undefined);
-  assert.equal(out.name, 'BTC bot'); assert.equal(out.memberCount, 3); assert.equal(out.venue, 'kalshi');
+  const out = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ hive: [200, hive] }) }));
+  assert.equal(out.publicPage, true); assert.equal(out.memberCount, 3);
   assert.deepEqual(out.lastCall, { question: 'new', side: 'yes', status: 'open', createdAt: '2026-07-01T00:00:00Z' });
-  const sparse = json(await callTool('get_bot_status', {}, { dir, deps, fetch: fetchReturning(200, {}) }));
-  assert.equal(sparse.lastCall, null); assert.equal(sparse.memberCount, null);
-  assert.equal(json(await callTool('get_bot_status', {}, { dir, deps, fetch: fetchReturning(404, { error: 'Hive not found' }) })).found, false);
+  const sparse = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ whoami: [404, {}], hive: [200, {}] }) }));
+  assert.equal(sparse.lastCall, null); assert.equal(sparse.memberCount, null); assert.equal(sparse.found, true);
+});
+test('get_bot_status names a real mismatch, an unregistered key and clock skew', async t => {
+  const dir = kit(t);
+  makeIdentity(dir);
+  await callTool('set_hive_id', { hiveId: 9 }, { dir, deps });
+  const other = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 12, maxStakeUsd: 1 }] }) }));
+  assert.equal(other.hiveIdMismatch, true); assert.match(other.message, /belongs to Hive 12/);
+  const none = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [401, { error: 'signer is not a registered bot' }] }) }));
+  assert.equal(none.found, false); assert.match(none.message, /No bot Hive on prod uses this signing address/);
+  const skew = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [401, { error: 'stale or future-dated request' }] }) });
+  assert.ok(skew.isError); assert.match(text(skew), /clock/);
 });
 
 test('dry_run forces live trading off, gives the run no key and hides key-like lines', async t => {
@@ -182,18 +279,18 @@ test('dry_run forces live trading off, gives the run no key and hides key-like l
     console.log(JSON.stringify({ live: process.env.BOT_LIVE_TRADING_ENABLED, key: process.env.BOT_PRIVATE_KEY, options: process.env.NODE_OPTIONS ?? null, hive: process.env.BOT_HIVE_ID }));
     console.log('debug 0x' + 'cd'.repeat(32));
   `);
-  await callTool('create_signing_key', {}, { dir, deps });
+  makeIdentity(dir);
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('BOT_LIVE_TRADING_ENABLED=false', 'BOT_LIVE_TRADING_ENABLED=true'));
   const result = await callTool('dry_run', {}, { dir, deps, env: { PATH: process.env.PATH, BOT_LIVE_TRADING_ENABLED: 'true', NODE_OPTIONS: '--no-warnings' } });
   assert.doesNotMatch(text(result), SECRET);
   const out = json(result);
   assert.equal(out.ok, true); assert.equal(out.liveTrading, false);
   const lines = out.stdout.split('\n');
-  assert.deepEqual(JSON.parse(lines[0]), { live: 'false', key: '', options: null, hive: '1' });
-  assert.match(lines[1], /line hidden/); assert.ok(out.placeholderHiveId);
+  assert.deepEqual(JSON.parse(lines[0]), { live: 'false', key: '', options: null, hive: '' }, 'no placeholder Hive ID: a dry run does not need one');
+  assert.match(lines[1], /line hidden/); assert.match(out.hiveId, /Not set yet/);
   await callTool('set_hive_id', { hiveId: 42 }, { dir, deps });
   const registered = json(await callTool('dry_run', {}, { dir, deps, env: { PATH: process.env.PATH } }));
-  assert.equal(JSON.parse(registered.stdout.split('\n')[0]).hive, '42'); assert.equal(registered.placeholderHiveId, undefined);
+  assert.equal(JSON.parse(registered.stdout.split('\n')[0]).hive, '42'); assert.equal(registered.hiveId, undefined);
   assert.doesNotMatch(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m, 'the .env flag the person set is left alone');
 });
 

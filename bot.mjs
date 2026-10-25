@@ -5,41 +5,77 @@ import { jsonRequest, kalshiStake } from './lib/protocol.mjs';
 import { discoverPolymarket, preparePolymarket } from './lib/polymarket.mjs';
 import { strategy } from './strategy.mjs';
 import { execute } from './lib/run.mjs';
+import { SafeError, stopMessage } from './lib/errors.mjs';
+import { isSupportedKalshiTicker, isSupportedKalshiSeries, kalshiSeriesOf, pickOpenMarket } from './lib/kalshi-markets.mjs';
 let stage = 'configuration';
+const price = p => (Number.isFinite(p) ? `$${p.toFixed(3).replace(/0$/, '')}` : 'no ask');
+// The strategy may explain itself: `reasons` is a list of short text lines,
+// printed as TRACE lines so the person can see why the rule did or did not trade.
+function traceLines(reasons) {
+  if (reasons === undefined) return [];
+  if (!Array.isArray(reasons) || reasons.some(r => typeof r !== 'string')) throw new SafeError('Your strategy returned reasons that are not a list of text lines.');
+  return reasons.slice(0, 20).map(r => r.replace(/[\r\n]+/g, ' ').slice(0, 300));
+}
 async function main() {
   const cfg = config();
+  if (cfg.hiveId === null) console.log('NOTE: BOT_HIVE_ID is not set yet. A dry run does not need it; real trading does.');
   stage = 'public market lookup';
   let market;
   if (cfg.venue === 'polymarket') market = await discoverPolymarket(process.env.MARKET_SLUG);
   else {
-    const ticker = process.env.KALSHI_TICKER ?? '';
-    if (!/^KX(BTC|ETH|SOL)15M-[A-Z0-9-]+$/.test(ticker)) throw new Error('Set a supported exact Kalshi ticker');
+    const series = process.env.KALSHI_SERIES ?? '';
+    let ticker = process.env.KALSHI_TICKER ?? '';
+    const docs = 'See the list at https://docs.hivetrade.com/run-a-bot/kalshi.';
+    if (series && ticker) throw new SafeError('Set KALSHI_TICKER (one fixed market) or KALSHI_SERIES (the market of that series open right now), not both.');
+    if (series && !isSupportedKalshiSeries(series)) throw new SafeError(`KALSHI_SERIES is not a series HiveTrade's bot API accepts. ${docs}`);
+    if (!series && !isSupportedKalshiTicker(ticker)) throw new SafeError(`KALSHI_TICKER must be an exact ticker in a series HiveTrade's bot API accepts (or set KALSHI_SERIES instead). ${docs}`);
     const { kalshiApiBase } = await jsonRequest(`${cfg.api}/api/bot/builder-config`);
     const base = new URL(kalshiApiBase);
     if (base.protocol !== 'https:' || !['api.elections.kalshi.com', 'external-api.kalshi.com'].includes(base.hostname) || base.username || base.password) throw new Error('Unexpected Kalshi API base');
-    const { market: m } = await jsonRequest(`${base.href.replace(/\/$/, '')}/markets/${encodeURIComponent(ticker)}`);
-    if (!m || m.ticker !== ticker || m.status !== 'active' || Date.parse(m.close_time) <= Date.now() || !Number.isFinite(Date.parse(m.close_time))) throw new Error('Kalshi market is not open');
+    const kalshi = base.href.replace(/\/$/, '');
+    if (series) {
+      const { markets } = await jsonRequest(`${kalshi}/markets?series_ticker=${encodeURIComponent(series)}&status=open&limit=200`);
+      const picked = pickOpenMarket(markets, series);
+      if (!picked.ticker && picked.open.length === 0) throw new SafeError(`No ${series} market is open right now. Try again when the next one opens.`);
+      if (!picked.ticker) throw new SafeError(`${picked.open.length} ${series} markets are open at once, so the bot cannot pick one for you. Set KALSHI_TICKER to the one your rule trades (and empty KALSHI_SERIES). Open now: ${picked.open.slice(0, 10).join(', ')}${picked.open.length > 10 ? ', ...' : ''}`);
+      ticker = picked.ticker;
+      console.log(`TRACE KALSHI_SERIES ${series}: the market open right now is ${ticker}`);
+    }
+    let m;
+    try { ({ market: m } = await jsonRequest(`${kalshi}/markets/${encodeURIComponent(ticker)}`)); }
+    catch (error) { if (/HTTP 404/.test(String(error?.message))) throw new SafeError('Kalshi has no market with the ticker in KALSHI_TICKER. Check it for typos.'); throw error; }
+    const closes = Date.parse(m?.close_time);
+    if (m?.ticker === ticker && (m.status !== 'active' || !(closes > Date.now()))) {
+      throw new SafeError(`The market in KALSHI_TICKER has closed${Number.isFinite(closes) ? ` (it closed at ${new Date(closes).toISOString()})` : ''}. A fixed ticker trades one market only; 15-minute markets close every 15 minutes. Set a new open ticker, or set KALSHI_SERIES=${kalshiSeriesOf(ticker)} (and empty KALSHI_TICKER) to use that series' market open right now.`);
+    }
+    if (!m || m.ticker !== ticker || !Number.isFinite(closes)) throw new SafeError('Kalshi returned an unexpected answer for this ticker.');
     market = { id: ticker, ticker, question: m.title,
       yesAsk: m.yes_ask_dollars != null ? Number(m.yes_ask_dollars) : Number(m.yes_ask) / 100,
       noAsk: m.no_ask_dollars != null ? Number(m.no_ask_dollars) : Number(m.no_ask) / 100 };
   }
-  stage = 'strategy configuration';
+  console.log(`TRACE market ${market.id}: ${market.question ?? 'no question text'}`);
+  console.log(`TRACE asks: YES ${price(market.yesAsk)}, NO ${price(market.noAsk)}`);
+  stage = 'strategy';
   const decision = strategy(market);
-  if (!decision) { console.log('SKIP: example rule did not select a trade.'); return; }
+  stage = 'strategy configuration';
+  for (const line of traceLines(decision?.reasons)) console.log(`TRACE ${line}`);
+  if (!decision || decision.skip === true) { console.log('SKIP: your rule did not select a trade.'); return; }
   // A replacement strategy must keep the same bounded output contract.
-  if (!['yes', 'no'].includes(decision.side)) throw new Error('Invalid strategy side');
+  if (!['yes', 'no'].includes(decision.side)) throw new SafeError('Your strategy returned an invalid side: use "yes" or "no".');
   positive(decision.maxPrice, 'strategy maxPrice', 0.99);
   let signal = { hiveId: cfg.hiveId, venue: cfg.venue, side: decision.side,
     signalStrength: cfg.strength, intent: true, nonce: randomUUID(), issuedAt: Date.now() };
   if (cfg.venue === 'kalshi') {
     const contracts = positive(process.env.KALSHI_CONTRACTS ?? 1, 'KALSHI_CONTRACTS');
-    if (!Number.isSafeInteger(contracts)) throw new Error('Use whole contracts');
+    if (!Number.isSafeInteger(contracts)) throw new SafeError('KALSHI_CONTRACTS must be a whole number.');
     const cents = Math.floor((decision.maxPrice + 1e-12) * 100);
-    if (cents < 1) throw new Error('Kalshi price cap must be at least one cent');
+    if (cents < 1) throw new SafeError('Your strategy\'s maxPrice is under one cent, the lowest Kalshi price.');
     signal = { ...signal, execution: 'hivetrade-v1', kalshiTicker: market.ticker,
       kalshiContracts: contracts, kalshiPriceCents: cents, stakeUsd: kalshiStake(contracts, cents) };
+    const orderUsd = contracts * cents / 100;
+    console.log(`TRACE cost of one Call on Kalshi: at most $${signal.stakeUsd.toFixed(2)} = ${contracts} contract${contracts === 1 ? '' : 's'} x $${(cents / 100).toFixed(2)} price cap ($${orderUsd.toFixed(2)}) + Kalshi fee up to $${(signal.stakeUsd - orderUsd).toFixed(2)}`);
   } else signal = { ...signal, conditionId: market.conditionId, orderType: 'marketable', stakeUsd: positive(process.env.STAKE_USD ?? 1, 'STAKE_USD') };
-  if (signal.stakeUsd > cfg.maxStake) throw new Error('Trade exceeds local MAX_STAKE_USD');
+  if (signal.stakeUsd > cfg.maxStake) throw new SafeError(`This trade's stake ($${signal.stakeUsd}) is above MAX_STAKE_USD ($${cfg.maxStake}). ${cfg.venue === 'kalshi' ? 'KALSHI_CONTRACTS at this price' : 'STAKE_USD'} must fit the cap you chose.`);
   console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: decision.maxPrice, maximumStakeUsd: signal.stakeUsd }));
   if (!cfg.live) return; // No signer, auth, intent, order or fill submission in dry run.
   stage = 'signer and Hive preflight';
@@ -47,7 +83,7 @@ async function main() {
   const issuedAt = Date.now();
   const budget = await jsonRequest(`${cfg.api}/api/bot/budget`, { issuedAt,
     signature: await account.signMessage({ message: `hivetrade:bot-budget:${issuedAt}` }) });
-  if (budget.hiveId !== cfg.hiveId || !Number.isFinite(budget.maxStakeUsd) || signal.stakeUsd > budget.maxStakeUsd) throw new Error('Hive identity or platform stake cap mismatch');
+  if (budget.hiveId !== cfg.hiveId || !Number.isFinite(budget.maxStakeUsd) || signal.stakeUsd > budget.maxStakeUsd) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID, or the stake is above the Hive\'s per-call cap.');
   stage = 'Polymarket order preparation';
   const submitOrder = cfg.venue === 'polymarket' ? await preparePolymarket(account, cfg, market, decision, signal.stakeUsd) : undefined;
   signal.issuedAt = Date.now();
@@ -55,4 +91,7 @@ async function main() {
   const result = await execute({ cfg, account, signal, submitOrder, request: jsonRequest });
   console.log(JSON.stringify(result));
 }
-main().catch(() => { console.error(`Stopped during ${stage}. Review configuration and state/journal.json; reconcile any submitted trade before restarting. Raw errors are suppressed to avoid exposing credentials.`); process.exitCode = 1; });
+main().catch(error => {
+  console.error(stopMessage(stage, error, { stateDir: process.env.STATE_DIR || './state', strategyStage: stage === 'strategy' }));
+  process.exitCode = 1;
+});

@@ -16,11 +16,16 @@ Codex, Cursor). Step-by-step for beginners: https://docs.hivetrade.com/run-a-bot
 Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
 I'm new to this, so explain each step in plain words.
 1. Clone the repository into a new folder, then read README.md and AGENTS.md.
-2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my strategy
-   idea in plain words, the most it may spend per Call, and whether it should
-   run on this computer or on a server.
-3. Create the bot's signing key. Never show me the private key or put it in chat.
-4. Turn my idea into the bot's rule, run the tests, and show me a dry run.
+2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my own trading
+   rule in my own words, the exact market it trades (a link is fine), the most
+   it may spend per Call, and whether it should run on this computer or on a
+   server.
+3. Tell me the command that creates the bot's signing key. I will run it myself
+   and give you only the public address it prints. Never run it yourself, never
+   open .env, and never ask me for the private key.
+4. Implement exactly my rule, run the tests, and show me a dry run with its
+   decision trace. Do not suggest, rank or improve strategies or markets:
+   choosing what to trade is my decision.
 5. Give me a pre-filled "Create a bot Hive" link. I will check the signing
    address and press Create myself.
 6. Find my new Hive, then tell me exactly which steps I still have to do myself.
@@ -49,14 +54,16 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 
 ## How setup works
 
-1. **Agent:** creates the bot's signing key on your computer and shows only its
-   public address.
+1. **You:** run `npm run setup` in your own terminal, in the bot folder. It saves
+   the bot's signing key in `.env` and prints only its public address. Give that
+   address to your agent. Your agent never runs this command and never opens `.env`.
 2. **Agent:** writes your strategy, runs the tests and a dry run.
 3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
 4. **You:** open it, check the signing address, and press **Create bot Hive**.
 5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
-6. **You:** connect your Kalshi API key and consent, or fund the bot's Polymarket
-   deposit wallet.
+6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: live
+   trading for new bots is not self-serve yet; they will trade from your own
+   HiveTrade account once HiveTrade finishes that part.
 7. **You:** turn on live trading, only when you decide to.
 
 Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
@@ -65,10 +72,12 @@ Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/
 
 - A small **user-selected side + maximum price** example, disabled until configured.
   It is a programming example, not a forecast or a promise of profit.
-- Polymarket: bot-owned deposit wallet, signed intent, local order, actual fill report.
+- Polymarket: dry runs and Hive creation today. Live trading for new bots is not
+  self-serve yet (they will trade from your own HiveTrade account). Older bots
+  keep their own deposit wallet, local order and fill report.
 - Kalshi: signed v2 intent; HiveTrade executes using the operator's connected account.
   No Kalshi private key belongs in this runner.
-- Local key creation, wallet binding, spending checks, persistent duplicate prevention,
+- Local key creation, spending checks, persistent duplicate prevention,
   and tests that do not place real trades.
 
 The runner checks **one exact market once, then exits**. Start here before adding
@@ -80,17 +89,39 @@ the venue's supported tools. Kalshi handles settlement in your Kalshi account.
 
 Requires Node.js 24+ and npm. Clone the **whole repository**, not a single script:
 
+Your agent can do the first part:
+
 ```bash
 git clone https://github.com/hive-trade/bots.git my-bot
 cd my-bot
 npm ci
-npm run setup
 npm run check
 npm test
 ```
 
-`setup` creates `.env` with permissions `0600` and prints only the public address.
-It refuses to overwrite an existing `.env`. Keep a private backup of the identity;
+`npm ci` may report a few **low** severity advisories. They come from the
+Polymarket SDK's older cryptography library and have no fix yet; you do not need
+to run `npm audit fix --force`, which can break the SDK.
+
+**You** create the signing key, in your own terminal, in that folder:
+
+```bash
+npm run setup            # production (app.hivetrade.com)
+npm run setup -- --dev   # or the dev site (dev.hivetrade.com, still real money)
+```
+
+It prints two lines:
+
+```text
+Your bot's public address: 0x...
+Give this address to your agent. Your private key was saved in .env; never share it.
+```
+
+`setup` creates `.env` with permissions `0600`, never shows the key and refuses to
+overwrite an existing `.env`. Your agent never runs `setup` and never reads, prints
+or opens `.env`. It changes public settings with `npm run settings -- KEY=value`
+(or the MCP tool `update_settings`) and views them with `npm run settings`, which
+hides the key. Keep a private backup of the identity;
 losing it may lose access to the associated wallet. Never commit `.env`, journal
 files, or credentials. The example needs no access to HiveTrade's private repository.
 
@@ -98,25 +129,51 @@ files, or credentials. The example needs no access to HiveTrade's private reposi
 
 Only you can create the Hive, in your own signed-in browser. Your agent builds a
 pre-filled link (MCP tool `prepare_registration`) and never submits it. Open it,
-check that the **signing address** is exactly the one your agent showed you, tick
-the Captain agreement and press **Create bot Hive**. The agent then reads the Hive
+check that the **signing address** is exactly the one your agent showed you, and
+press **Create bot Hive**. The agent then reads the Hive
 ID back (`check_registration`) or, if that lookup is not available yet, asks you
-for the ID the page showed (`set_hive_id`). See [agent setup](docs/agent-setup.md).
+for the ID the page showed and saves it with `set_hive_id`. You can also save it
+yourself: `npm run set-hive -- 4262` (with your Hive's ID).
 
-Manual fallback: sign in at [Create a bot Hive](https://app.hivetrade.com/bots/new),
-choose the venue, name the Hive, enter the **public signing address**, and set
-`BOT_HIVE_ID` in `.env` yourself.
+`npm run whoami` asks HiveTrade, signed with the bot's key, which Hive the key
+belongs to and whether `BOT_HIVE_ID` in `.env` matches. It prints only public
+facts and changes nothing.
 
-Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
-The legacy daily-budget field is not an enforced daily spending limit.
+**The Hive page shows a short `.env` snippet** (`VENUE`, `BOT_HIVE_ID`,
+`BOT_API_URL`). Never paste it over your `.env` file: that deletes the bot's
+signing key. Use `npm run set-hive -- <ID>` and `npm run settings -- KEY=value`
+instead. See [agent setup](docs/agent-setup.md).
+
+Manual fallback: sign in at Create a bot Hive
+([production](https://app.hivetrade.com/bots/new) or [dev](https://dev.hivetrade.com/bots/new)),
+choose the venue, name the Hive, enter the **public signing address**, and give
+your agent the Hive ID the page shows (it saves it with `set_hive_id`), or run
+`npm run set-hive -- <ID>` yourself.
+
+**Spending limits.** The most your bot may spend per Call is set in two places,
+and both apply: the Hive's per-call cap (the `maxStake` on the Create form) and
+`MAX_STAKE_USD` in `.env`. Set both to the number you chose. The stake of each
+order is `STAKE_USD` (Polymarket) or `KALSHI_CONTRACTS` at the price cap
+(Kalshi), and it must fit both caps. There is no daily limit: a run places at
+most one order on its market, and the kit never trades the same market twice.
 
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
 bot's stake does not set it.
 
-Production uses `https://api.hivetrade.com`; a Hive registered on dev uses
-`https://api-dev.hivetrade.com`. Never mix environments. An API rejection is a
+### Environments
+
+| | Web (where you create the Hive) | API (`BOT_API_URL`) |
+|---|---|---|
+| Production (default) | `https://app.hivetrade.com` | `https://api.hivetrade.com` |
+| Dev | `https://dev.hivetrade.com` | `https://api-dev.hivetrade.com` |
+
+**Dev is not play money.** The dev site places real orders with real funds on
+Polymarket and Kalshi, exactly like production. Use small amounts on both.
+
+A Hive exists on one environment only. Never mix them: the web site where you
+press Create and the bot's `BOT_API_URL` must be on the same row. An API rejection is a
 failed preflight, not permission to bypass a restriction.
 
 ## 3. Complete venue setup
@@ -126,52 +183,92 @@ failed preflight, not permission to bypass a restriction.
 1. Set `VENUE=kalshi`.
 2. Have an eligible, funded Kalshi account. Connect your Kalshi API key in
    HiveTrade Settings and complete the required execution consent.
-3. Choose an exact currently open `KXBTC15M`, `KXETH15M`, or `KXSOL15M` ticker.
-   These are the series currently accepted by HiveTrade's bot API; arbitrary
-   sports, politics, and other Kalshi tickers are not supported by this integration.
-4. Set `KALSHI_TICKER` and `KALSHI_CONTRACTS` (one whole contract initially).
-   Maximum stake includes the API's fee allowance and must fit both spending caps.
+3. Choose the market. HiveTrade's bot API accepts markets in about 190 Kalshi
+   series (crypto, sports, elections, economics, weather and more), listed at
+   [Markets the bot API accepts](https://docs.hivetrade.com/run-a-bot/kalshi);
+   the kit carries the same list in `lib/kalshi-markets.mjs`. Then set one of:
+   - `KALSHI_TICKER`: one exact open market. It trades that market only, and
+     stops with "has closed" once the market closes.
+   - `KALSHI_SERIES` (for example `KXBTC15M`): each run uses the market of that
+     series that is open right now. Useful for 15-minute series, whose markets
+     close every 15 minutes. If several markets of the series are open at once,
+     it lists them and you set `KALSHI_TICKER` to the one your rule trades.
+4. Set `KALSHI_CONTRACTS` (whole contracts; start with one). One Call costs at
+   most contracts x price cap + Kalshi's fee, and the dry run prints that sum.
+   It must fit both spending caps.
 
-Only the platform signing key goes in `.env`. HiveTrade submits the Captain order;
+**Your Kalshi API key** goes into HiveTrade, never into this kit. On kalshi.com
+(labels as seen on 2026-10-25): profile icon, **Account & security**, **API keys**,
+**Create new API key**. Tick **Trade** and **Transfer between your Kalshi
+portfolios**; leave **Withdraw** unticked, so the key cannot take money out.
+Kalshi shows a Key ID and downloads the private key as a file, once. In
+HiveTrade, open Settings, choose **Connect Kalshi**, enter the Key ID and the key
+file, accept the consent and allow copy-trading. Only you do this, in your own
+browser; your agent never sees that key.
+
+Only the bot's signing key goes in `.env`. HiveTrade submits the Captain order;
 do not add a second local Kalshi order or a Polymarket-style fill report.
 
 ### Polymarket
 
-1. Set `VENUE=polymarket`. Complete Polymarket's supported wallet setup using this
-   bot's signing identity. The bot needs its **own deployed deposit wallet**, with
-   tradable collateral and trading approvals; your human account's wallet is not
-   a substitute. Follow [wallet setup](https://docs.polymarket.com/trading/wallets-auth).
-2. Set `POLYMARKET_DEPOSIT_WALLET` to the deposit contract address, not the signing
-   address. Complete funding/wrapping using Polymarket's supported tools.
-3. Run `npm run bind-wallet` (alias: `npm run register-wallet`) to associate that wallet with this Hive. The API checks
-   its on-chain owner. This is a setup write, not a trade.
-4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. The runner derives CLOB
-   authentication locally and retrieves the public builder configuration from HiveTrade.
+**Event link or market slug?** A Polymarket *event* page
+(`polymarket.com/event/<event>`) can hold many Yes/No *markets*, and each market
+has its own slug. The bot trades exactly one market, so `MARKET_SLUG` must be a
+market slug. Paste the link into `npm run find-market -- <link>` (MCP tool
+`find_market`): if the link points at one market it prints `MARKET_SLUG=...`, its
+status and Polymarket's end date; if it is an event, it lists the event's open
+markets and you pick the one your rule trades.
 
-The starter does not deploy wallets, create approvals, wrap collateral or redeem
-winnings. Those are separate prerequisites/maintenance tasks. Follow the venue's
-eligibility rules; a server does not change regional eligibility.
+1. Set `VENUE=polymarket` and an exact binary Yes/No `MARKET_SLUG` (a
+   polymarket.com link is not a slug: `npm run find-market -- <link>` turns it
+   into one). You can create the Hive and run dry runs today.
+2. **Live trading for a new Polymarket bot is not self-serve yet.** New
+   Polymarket bots will trade from your own HiveTrade account: the bot signs the
+   Call and HiveTrade places the order in your account. HiveTrade is still
+   building that part. Until it is ready, there is nothing to fund for the bot.
+   Never send money to the bot's signing address, never sign in to Polymarket as
+   the bot, and never import the bot's key into a wallet app.
+
+**Older bots only.** A bot created before this change trades from a deposit
+wallet its operator set up and registered (**register the wallet**:
+`npm run bind-wallet`, same as `npm run register-wallet`; see
+[the protocol](docs/protocol.md)). That keeps working; new bots do not use it.
+The starter does not redeem winnings. Follow the venue's eligibility rules; a
+server does not change regional eligibility.
 
 ## 4. Implement your idea and preview it
 
-Your agent should edit `strategy.mjs`. It receives a market with `yesAsk` and
-`noAsk` and returns `null` to skip or `{ side: "yes" | "no", maxPrice }`.
-Prices are decimal probabilities: `0.40` means 40 cents.
+Your agent should edit `strategy.mjs`. It receives a market with `question`,
+`yesAsk` and `noAsk`, and returns either a skip (`null` or
+`{ skip: true, reasons }`) or a trade (`{ side: "yes" | "no", maxPrice, reasons }`).
+Prices are decimal probabilities: `0.40` means 40 cents. `maxPrice` is the highest
+price the order may pay, and that price itself is allowed. `reasons` is optional:
+a list of short text lines that the dry run prints as `TRACE` lines, so you can
+see why your rule did or did not trade. The dry run also prints the market and
+its asks as `TRACE` lines before your rule's own.
 
 To try the illustrative rule, set `EXAMPLE_SIDE` and `EXAMPLE_MAX_PRICE`. Without
 both, it skips or rejects configuration. This rule only demonstrates a price
 limit: it has no predictive edge. Match any real data source to the market's
 resolution rules. See [example ideas](strategy-playbook.md).
 
-Keep `BOT_LIVE_TRADING_ENABLED=false`, then run:
+**Tests.** The example rule's tests are in `test/example-strategy.test.mjs`.
+When you replace `strategy.mjs`, replace that file with tests for your own rule.
+The other files in `test/` check the kit itself and never load `strategy.mjs`,
+so they stay green whatever your rule is.
+
+Preview it with a dry run:
 
 ```bash
-npm start
+npm run dry-run
 ```
 
+`npm run dry-run` always runs with live trading off and without the signing key,
+whatever `.env` says. It needs no Hive ID, so you can run it before you create
+the Hive. (`npm start` does the same while `BOT_LIVE_TRADING_ENABLED=false`.)
 A dry run fetches public market data and prints a decision. It submits **no intent,
 order, or fill report**. It does not prove wallet funding, trading permissions, or
-that a live order will fill. `npm run setup` and `bind-wallet` are separate commands.
+that a live order will fill.
 
 ## 5. Enable only when you intend to trade
 
@@ -186,31 +283,39 @@ order retries. See [recovery](docs/recovery.md) before restarting after a failur
 
 ## Hosting and extending
 
-Local execution stops when the computer sleeps or the process exits. A server
-can run scheduled checks while your computer is off; review the host's current
-pricing and job schedule before deploying. Keep your strategy in a repository
-you control and choose its visibility deliberately.
+**Today the guided server setup runs practice only.** The Railway helper
+([guide](docs/railway.md), skill
+[`skills/hivetrade-deploy/SKILL.md`](skills/hivetrade-deploy/SKILL.md)) deploys
+scheduled **dry runs**: the server checks your market on a timer, with live
+trading always off and no signing key. It cannot place real orders, even if you
+change a setting on the server. Real trading works only on your own computer
+today (step 5). Your decision trace (`TRACE` lines) shows only in local runs; the
+server prints a short completion line instead, so your strategy's output never
+reaches a host's logs.
 
-`railway.json` starts `node bot.mjs` using the host's environment variables, so
-no uploaded `.env` file is needed. It disables automatic restarts: an uncertain
-trade must be reconciled, not restarted in a loop. Node 24+ is declared in
-`package.json`. Set up a persistent volume and scheduling explicitly; this config
-does not turn the one-shot example into a continuous strategy.
+Local execution stops when the computer sleeps or the process exits. Review the
+host's current pricing before deploying: a server costs money even for practice.
+`npm run railway -- plan <config>.json` checks a config before you have a Railway
+project; `deploy` and `verify` then need the three Railway UUIDs. Keep your
+strategy in a repository you control and choose its visibility deliberately.
 
-Use one runner instance and a persistent volume for `STATE_DIR`. A redeploy must
-keep the journal; an empty new volume loses duplicate protection. Configure
-secrets through your hosting provider's secret settings, never a Dockerfile or
-Git repository. Moving the private key to a server is an explicit user choice.
+Building your own live server setup is outside what this kit guides. If you do,
+`railway.json` starts `node bot.mjs` from the host's environment variables and
+disables automatic restarts (an uncertain trade must be reconciled, not
+restarted in a loop). Use one runner instance and a persistent volume for
+`STATE_DIR`: an empty new volume loses duplicate protection. You put the private
+key in the host's secret settings yourself, never in a Dockerfile or Git
+repository; your agent never copies it.
 
-The included command is a one-shot job, not a web service: it has no `/health`
-endpoint. A scheduler may invoke it periodically, but it intentionally will not
-trade the same market twice. For a continuous bot, your agent must add market
-selection, fresh data, exposure and cumulative spending limits, supervision,
-exit/settlement handling, and tests. Do not remove the execution guards to make it run.
+The runner is a one-shot job, not a web service: it has no `/health` endpoint
+and will not trade the same market twice. For a continuous bot, your agent must
+add market selection, fresh data, exposure and cumulative spending limits,
+supervision, exit/settlement handling, and tests. Do not remove the execution
+guards to make it run.
 
 ## Documentation and support
 
-- [Public setup docs](https://hivetrade-docs.vercel.app/run-a-bot/custom)
+- [Public setup docs](https://docs.hivetrade.com/run-a-bot/custom)
 - [HiveTrade docs: set up with your AI agent](https://docs.hivetrade.com/run-a-bot/agent)
 - [Set up with an AI agent](docs/agent-setup.md)
 - [Wire contract](docs/protocol.md)
@@ -219,11 +324,3 @@ exit/settlement handling, and tests. Do not remove the execution guards to make 
 Compatibility checked against HiveTrade's current API contract on 2026-09-15.
 Offline tests and dry runs do not certify a funded live account. Report an issue
 with redacted configuration and an error stage; never attach keys or full SDK logs.
-
-### Let an AI agent set up Railway hosting
-
-Give your agent this repository and point it to
-[`skills/hivetrade-deploy/SKILL.md`](skills/hivetrade-deploy/SKILL.md).
-The [deployment guide](docs/railway.md) provides `plan`, `deploy` and `verify`
-commands for a new Railway service, persistent storage and scheduled dry runs.
-It uses your existing Railway CLI login and keeps live trading disabled.

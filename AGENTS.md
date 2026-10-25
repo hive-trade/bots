@@ -7,29 +7,51 @@ to HiveTrade's private production strategies, parameters or internal telemetry.
 For guided setup follow docs/agent-setup.md: never ask the person to paste a key;
 never submit the Hive form for them.
 
-Ask for venue, Hive name, exact market/category, strategy in plain language,
+Environments: production = web https://app.hivetrade.com, API
+https://api.hivetrade.com (default); dev = web https://dev.hivetrade.com, API
+https://api-dev.hivetrade.com. Dev still trades real money on Polymarket and
+Kalshi; say so plainly, never call it test funds. Never mix environments.
+
+Ask for venue, Hive name, exact market (a polymarket.com link is fine:
+`npm run find-market -- <link>` gives the market slug; an event link lists its
+markets for the person to pick), category, strategy in plain language,
 spending limit and local/hosted preference. Explain the example's limitations.
-Only supported Kalshi directional series work today. Do not invent general venue
+Kalshi: only markets in the series listed at https://docs.hivetrade.com/run-a-bot/kalshi
+work (copied in lib/kalshi-markets.mjs); use KALSHI_SERIES for a series whose
+markets close quickly. Do not invent general venue
 support, automatic withdrawals, redemption, profitability or daily platform caps.
 
-1. Use Node 24+, npm ci, npm run setup. Never read .env into tool output or chat.
+1. Use Node 24+ and npm ci. The PERSON creates the signing key: tell them to run
+   `npm run setup` (`npm run setup -- --dev` for dev) in their own terminal in
+   the bot folder and to give you the public address it prints. To save a Hive
+   ID without opening .env: MCP `set_hive_id`, or the person runs
+   `npm run set-hive -- <ID>`; `npm run whoami` checks it (signed, prints no
+   key). Tell the person never to paste the Hive page's .env snippet over .env. Never run that command yourself.
+   **Hard rule: never read, cat, grep, open or print .env**, not even part of it.
+   Change public settings with `npm run settings -- KEY=value` (or MCP
+   `update_settings`) and view them with `npm run settings`, which hides the key.
    Show only the public address. Never upload or commit credentials/state.
 2. Registration: build the pre-filled `/bots/new` link for the local signer
    (MCP `prepare_registration`). The user opens it, checks the signing address,
-   ticks the agreement and presses Create; you never submit it. Then read the Hive
+   and presses Create; you never submit it. Bot Hives have no agreement checkbox. Then read the Hive
    ID with the signed lookup (MCP `check_registration`); if the API lacks it, ask
    for the ID the page showed (`set_hive_id`). The manual form is the fallback.
-   The user performs account consent, the Kalshi key connection, wallet setup and
-   funding in the appropriate app. Never request a private key in chat.
+   The user performs account consent and the Kalshi key connection. Polymarket
+   live trading for new bots is not self-serve yet: they will trade from the
+   user's own HiveTrade account, which HiveTrade is still building. Say so
+   plainly. Never tell the user to fund a bot address, sign in to Polymarket as
+   the bot, or import the bot's key into a wallet app. Never request a private key in chat.
 3. Implement the user's rule in strategy.mjs. Keep execution separate from the
-   strategy. No copying built-in HiveTrade strategies or private code.
+   strategy. No copying built-in HiveTrade strategies or private code. Replace
+   test/example-strategy.test.mjs with tests for the user's rule; the other test
+   files test the kit and must not be edited to fit a rule.
 4. Keep live trading false. Run npm run check, npm test and a dry run. Explain the
    actual signal, stake, price limit and what remains unverified.
 5. The user decides whether to enable real orders. Follow your agent's own rules
    for financial actions. Dry runs, tests and a setup request do not authorize a
    real-money test. Never relax caps or clear unresolved journal entries to retry.
-6. When hosting is requested, preserve state with a persistent volume and one
-   instance. Explain the key will reside on that host and use its secret store.
+6. When hosting is requested, explain first that the guided server setup is
+   practice only today. Preserve state with a persistent volume and one instance.
 
 Changes to protocol/execution require tests for failure and ambiguous responses,
 not just successful orders. Update docs when behavior changes. This repo must
@@ -45,3 +67,6 @@ credential. Tool changes need tests in `test/mcp.test.mjs` proving that.
 
 For Railway server setup, follow `skills/hivetrade-deploy/SKILL.md` and
 `docs/railway.md`. Use the public-config deployment helper for scheduled previews.
+Tell the person before they pay for hosting that the hosted job is practice only
+(dry runs, never real orders); real trading works only on their own computer
+today. Do not build a live-trading server path.
