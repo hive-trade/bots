@@ -197,7 +197,16 @@ failed preflight, not permission to bypass a restriction.
    most contracts x price cap + Kalshi's fee, and the dry run prints that sum.
    It must fit both spending caps.
 
-Only the platform signing key goes in `.env`. HiveTrade submits the Captain order;
+**Your Kalshi API key** goes into HiveTrade, never into this kit. On kalshi.com
+(labels as seen on 2026-10-25): profile icon, **Account & security**, **API keys**,
+**Create new API key**. Tick **Trade** and **Transfer between your Kalshi
+portfolios**; leave **Withdraw** unticked, so the key cannot take money out.
+Kalshi shows a Key ID and downloads the private key as a file, once. In
+HiveTrade, open Settings, choose **Connect Kalshi**, enter the Key ID and the key
+file, accept the consent and allow copy-trading. Only you do this, in your own
+browser; your agent never sees that key.
+
+Only the bot's signing key goes in `.env`. HiveTrade submits the Captain order;
 do not add a second local Kalshi order or a Polymarket-style fill report.
 
 ### Polymarket
