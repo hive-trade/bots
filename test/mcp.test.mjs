@@ -189,11 +189,11 @@ test('dry_run forces live trading off, gives the run no key and hides key-like l
   const out = json(result);
   assert.equal(out.ok, true); assert.equal(out.liveTrading, false);
   const lines = out.stdout.split('\n');
-  assert.deepEqual(JSON.parse(lines[0]), { live: 'false', key: '', options: null, hive: '1' });
-  assert.match(lines[1], /line hidden/); assert.ok(out.placeholderHiveId);
+  assert.deepEqual(JSON.parse(lines[0]), { live: 'false', key: '', options: null, hive: '' }, 'no placeholder Hive ID: a dry run does not need one');
+  assert.match(lines[1], /line hidden/); assert.match(out.hiveId, /Not set yet/);
   await callTool('set_hive_id', { hiveId: 42 }, { dir, deps });
   const registered = json(await callTool('dry_run', {}, { dir, deps, env: { PATH: process.env.PATH } }));
-  assert.equal(JSON.parse(registered.stdout.split('\n')[0]).hive, '42'); assert.equal(registered.placeholderHiveId, undefined);
+  assert.equal(JSON.parse(registered.stdout.split('\n')[0]).hive, '42'); assert.equal(registered.hiveId, undefined);
   assert.doesNotMatch(readFileSync(join(dir, '.env'), 'utf8'), /^BOT_LIVE_TRADING_ENABLED=false$/m, 'the .env flag the person set is left alone');
 });
 

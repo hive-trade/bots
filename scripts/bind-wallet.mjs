@@ -2,7 +2,7 @@ import { isAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { config } from '../lib/config.mjs';
 import { registerWallet } from '../lib/protocol.mjs';
-const cfg = config();
+const cfg = config(process.env, { requireHiveId: true });
 if (cfg.venue !== 'polymarket') throw new Error('Wallet binding is only for Polymarket');
 const walletAddress = process.env.POLYMARKET_DEPOSIT_WALLET;
 if (!isAddress(walletAddress ?? '')) throw new Error('Set POLYMARKET_DEPOSIT_WALLET');

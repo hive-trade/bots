@@ -33,6 +33,13 @@ test('fill and wallet binding fixed vectors', () => {
     'HiveTrade bot fill v1\nhive:42\nmarket:9\nfilled:true\norder:order\nfilledUsd:0.8\nshares:2\nnonce:n\nissuedAt:123');
   assert.equal(walletMessage({ hiveId: 42, walletAddress: '0xABCD', issuedAt: 123 }), 'hivetrade:bot-register-wallet:42:0xabcd:123');
 });
+test('a dry run needs no Hive ID; real trading and wallet registration do', () => {
+  assert.equal(config({ VENUE: 'polymarket' }).hiveId, null);
+  assert.equal(config({ VENUE: 'polymarket', BOT_HIVE_ID: '' }).hiveId, null);
+  assert.equal(config({ VENUE: 'polymarket', BOT_HIVE_ID: '42' }).hiveId, 42);
+  assert.throws(() => config({ VENUE: 'polymarket', BOT_LIVE_TRADING_ENABLED: 'true' }), /BOT_HIVE_ID/);
+  assert.throws(() => config({ VENUE: 'polymarket' }, { requireHiveId: true }), /BOT_HIVE_ID/);
+});
 test('configuration cannot silently enable trading or redirect signed requests', () => {
   const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };
   assert.equal(config(env).live, false);

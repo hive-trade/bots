@@ -240,10 +240,8 @@ export function dryRun({ dir, env = process.env, node = process.execPath, timeou
   // environment), so the run is forced to preview mode without a key.
   const childEnv = { ...env, BOT_LIVE_TRADING_ENABLED: 'false', BOT_PRIVATE_KEY: '' };
   delete childEnv.NODE_OPTIONS;
-  // Before registration there is no Hive ID; a preview never uses it, so a
-  // placeholder lets the strategy be previewed first. Never written to .env.
-  const placeholderHiveId = !readEnv(dir)?.BOT_HIVE_ID && !env.BOT_HIVE_ID;
-  if (placeholderHiveId) childEnv.BOT_HIVE_ID = '1';
+  // A dry run needs no Hive ID (lib/config.mjs), so it works before registration.
+  const hiveIdSet = Boolean(readEnv(dir)?.BOT_HIVE_ID || env.BOT_HIVE_ID);
   return new Promise(done => {
     const child = spawn(node, ['--env-file=.env', 'bot.mjs'], { cwd: dir, env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '', stderr = '', timedOut = false;
@@ -254,7 +252,7 @@ export function dryRun({ dir, env = process.env, node = process.execPath, timeou
     child.on('close', code => {
       clearTimeout(timer);
       done({ ok: code === 0 && !timedOut, exitCode: code, timedOut, liveTrading: false,
-        ...(placeholderHiveId ? { placeholderHiveId: 'BOT_HIVE_ID is not set yet; the preview used a placeholder.' } : {}),
+        ...(hiveIdSet ? {} : { hiveId: 'Not set yet. A dry run does not need it; real trading does.' }),
         stdout: tail(stdout), stderr: tail(stderr),
         note: 'Dry run only: live trading was forced off and no key was given to the run. It submitted no intent, order or fill. It does not prove funding, permissions or that a live order would fill.' });
     });

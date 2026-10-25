@@ -46,8 +46,9 @@ same server, see [Other MCP clients](#other-mcp-clients).
    backup of `.env`.
 4. **Strategy.** The agent calls `list_strategies`, writes your rule in
    `strategy.mjs`, adds tests, and sets the market in `.env`.
-5. **Dry run.** The agent calls `dry_run`. Live trading is forced off and the run
-   gets no key. Before registration it uses a placeholder Hive ID.
+5. **Dry run.** The agent calls `dry_run` (or runs `npm run dry-run`). Live
+   trading is forced off and the run gets no key. It needs no Hive ID, so it
+   works before registration.
 6. **Registration link.** The agent calls `prepare_registration` with the name,
    venue and, optionally, description, category, per-call cap and environment.
    It gives you a link such as

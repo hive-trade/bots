@@ -67,9 +67,9 @@ and `npm test` pass.
 
 ## 4. Dry run
 
-`dry_run` (or `npm start` with `BOT_LIVE_TRADING_ENABLED=false`). Live trading is
-forced off; nothing is submitted. Before registration the MCP tool uses a
-placeholder Hive ID for the preview; with `npm start`, register first (step 5).
+`dry_run` (or `npm run dry-run`). Live trading is forced off and the run gets no
+key; nothing is submitted. A dry run needs no Hive ID, so it works before
+registration (step 5).
 
 **Check:** the output shows `DRY RUN` with the market, side, price cap and maximum
 stake, or `SKIP`. Explain what it means and what a dry run does not prove.

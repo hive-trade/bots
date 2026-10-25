@@ -54,6 +54,26 @@ test('both CLI dry runs use only public GET requests and need no private key', t
     assert.equal(skip.status, 0, skip.stderr); assert.match(skip.stdout, /^SKIP: /m); assert.doesNotMatch(skip.stdout, /DRY RUN/);
   }
 });
+test('a dry run works before the Hive exists; live trading without a Hive ID stops', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-no-hive-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dry = runBot(dir, { VENUE: 'polymarket' });
+  assert.equal(dry.status, 0, dry.stderr); assert.match(dry.stdout, /DRY RUN/); assert.match(dry.stdout, /BOT_HIVE_ID is not set yet/);
+  const live = runBot(dir, { VENUE: 'polymarket', BOT_LIVE_TRADING_ENABLED: 'true' });
+  assert.notEqual(live.status, 0); assert.doesNotMatch(live.stdout, /DRY RUN|LIVE/);
+});
+test('npm run dry-run forces live trading off and drops the key, whatever .env says', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-dry-run-script-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const probe = join(dir, 'probe.mjs');
+  // Stand-in for bot.mjs: report what the run would see.
+  writeFileSync(probe, `import { registerHooks } from 'node:module';
+    registerHooks({ resolve(s, c, next) { if (s === '../bot.mjs') return { url: 'data:text/javascript,console.log(JSON.stringify({live:process.env.BOT_LIVE_TRADING_ENABLED,key:process.env.BOT_PRIVATE_KEY}))', shortCircuit: true }; return next(s, c); } });`);
+  const result = spawnSync(process.execPath, ['--import', probe, join(root, 'scripts/dry-run.mjs')], { cwd: dir, encoding: 'utf8',
+    env: { PATH: process.env.PATH, BOT_LIVE_TRADING_ENABLED: 'true', BOT_PRIVATE_KEY: '0x' + '01'.repeat(32) } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), { live: 'false', key: '' });
+});
 test('kit tests do not depend on the rule in strategy.mjs', t => {
   // A person replaces strategy.mjs with a rule that would never match the
   // fixture market. The CLI test above must still see the fixture decision.

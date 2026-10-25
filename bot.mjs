@@ -8,6 +8,7 @@ import { execute } from './lib/run.mjs';
 let stage = 'configuration';
 async function main() {
   const cfg = config();
+  if (cfg.hiveId === null) console.log('NOTE: BOT_HIVE_ID is not set yet. A dry run does not need it; real trading does.');
   stage = 'public market lookup';
   let market;
   if (cfg.venue === 'polymarket') market = await discoverPolymarket(process.env.MARKET_SLUG);

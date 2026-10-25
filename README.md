@@ -168,12 +168,15 @@ When you replace `strategy.mjs`, replace that file with tests for your own rule.
 The other files in `test/` check the kit itself and never load `strategy.mjs`,
 so they stay green whatever your rule is.
 
-Keep `BOT_LIVE_TRADING_ENABLED=false`, then run:
+Preview it with a dry run:
 
 ```bash
-npm start
+npm run dry-run
 ```
 
+`npm run dry-run` always runs with live trading off and without the signing key,
+whatever `.env` says. It needs no Hive ID, so you can run it before you create
+the Hive. (`npm start` does the same while `BOT_LIVE_TRADING_ENABLED=false`.)
 A dry run fetches public market data and prints a decision. It submits **no intent,
 order, or fill report**. It does not prove wallet funding, trading permissions, or
 that a live order will fill. `npm run setup` and `bind-wallet` are separate commands.
