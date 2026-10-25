@@ -150,6 +150,19 @@ test('check_registration explains not-created, missing route and clock skew with
   assert.equal(readFileSync(join(dir, '.env'), 'utf8'), before);
 });
 
+test('tools called without deps load them, and never call a valid key invalid', async t => {
+  // Found 2026-10-25: a script calling callTool without deps was told '.env has
+  // no valid signing key' for a valid key, which pushes toward a new identity.
+  const dir = kit(t);
+  await callTool('create_signing_key', {}, { dir, deps });
+  const address = privateKeyToAccount(keyOf(dir)).address;
+  const link = json(await callTool('prepare_registration', { name: 'My bot', venue: 'polymarket' }, { dir }));
+  assert.equal(new URL(link.url).searchParams.get('signer'), address);
+  assert.equal(json(await callTool('get_setup_status', {}, { dir })).signingAddress, address);
+  writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace(/BOT_PRIVATE_KEY=.*/, 'BOT_PRIVATE_KEY=0x1234'));
+  const bad = await callTool('prepare_registration', { name: 'My bot', venue: 'polymarket' }, { dir, deps });
+  assert.ok(bad.isError); assert.match(text(bad), /Restore \.env from your backup/);
+});
 test('set_hive_id writes only BOT_HIVE_ID and rejects junk', async t => {
   const dir = kit(t);
   await callTool('create_signing_key', {}, { dir, deps });

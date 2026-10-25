@@ -7,6 +7,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { createIdentity } from '../lib/setup.mjs';
 import { readEnv, updateEnv, envPath } from './env-file.mjs';
+import { loadDeps } from './deps.mjs';
 
 export const ENVIRONMENTS = {
   prod: { api: 'https://api.hivetrade.com', web: 'https://app.hivetrade.com' },
@@ -39,6 +40,8 @@ function requireKit(dir) {
   }
 }
 function signer(env, deps) {
+  // Missing dependencies are not a bad key: say so, so nobody replaces a good identity.
+  if (typeof deps?.privateKeyToAccount !== 'function') throw new Error('The kit\'s dependencies are not loaded, so the signing key could not be checked. Run npm ci in the bot folder. The key in .env was not changed.');
   const key = env?.BOT_PRIVATE_KEY ?? '';
   if (!/^0x[0-9a-fA-F]{64}$/.test(key)) return null;
   try { return deps.privateKeyToAccount(key); } catch { return null; }
@@ -47,7 +50,7 @@ function needEnvAndSigner(dir, deps) {
   const env = readEnv(dir);
   if (!env) throw new Error('No .env yet. Run create_signing_key (or npm run setup) first.');
   const account = signer(env, deps);
-  if (!account) throw new Error('.env has no valid signing key. Do not paste one in chat; create a new identity in an empty folder if needed.');
+  if (!account) throw new Error('BOT_PRIVATE_KEY in .env is empty or not a 0x-prefixed 64-character hex key. Restore .env from your backup. Only if the key is truly lost, create a new identity in a new folder. Never paste a key in chat.');
   return { env, account };
 }
 function hiveIdOf(value) {
@@ -66,9 +69,10 @@ export function setupStatus({ dir, deps }) {
   if (env) {
     status.envFile = true;
     status.envFilePrivate = (statSync(envPath(dir)).mode & 0o077) === 0;
-    const account = signer(env, deps);
+    const account = deps ? signer(env, deps) : null;
     status.signingAddress = account ? account.address : null;
-    if (!account) status.keyProblem = 'BOT_PRIVATE_KEY is missing or malformed';
+    if (!deps) status.keyProblem = 'Dependencies are not installed, so the key was not checked. Run npm ci.';
+    else if (!account) status.keyProblem = 'BOT_PRIVATE_KEY is missing or malformed';
     status.venue = env.VENUE || null;
     status.apiUrl = env.BOT_API_URL || ENVIRONMENTS.prod.api;
     status.environment = environmentForApi(status.apiUrl) ?? 'unknown';
@@ -291,7 +295,14 @@ export async function callTool(name, args, ctx) {
   const tool = TOOLS.find(t => t.name === name);
   if (!tool) return { isError: true, content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
   try {
-    const result = await tool.run(ctx, args ?? {});
+    // A caller that passes no deps (a script importing this file, not the
+    // server) gets them loaded here, instead of a false "no valid key".
+    let context = ctx ?? {};
+    if (!context.deps) {
+      const deps = await loadDeps().catch(() => null);
+      if (deps) context = { ...context, deps };
+    }
+    const result = await tool.run(context, args ?? {});
     const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
     if (KEY_PATTERN.test(text)) throw new Error('Refusing to return output that looks like a private key');
     return { content: [{ type: 'text', text }] };
