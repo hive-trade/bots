@@ -17,8 +17,8 @@ See [agent setup](agent-setup.md#registration-protocol).
 ## Common preflight
 
 `POST /api/bot/budget` with `{ issuedAt, signature }`, signing
-`hivetrade:bot-budget:<issuedAt>`. Validate `hiveId` and `maxStakeUsd` from its
-response. Its daily-budget fields (`dailyBudgetUsd`, `remainingUsd`) are legacy
+`hivetrade:bot-budget:<issuedAt>`. Validate `hiveId` from its response;
+`maxStakeUsd` is the Hive's Amount per Call, what each Call stakes. Its daily-budget fields (`dailyBudgetUsd`, `remainingUsd`) are legacy
 figures and limit nothing; do not show them as a limit. This does not reserve
 funds or guarantee acceptance. The API applies
 its other authentication, venue, balance, consent and execution gates on submit.
@@ -41,15 +41,16 @@ declared `pm-op-v1`. The runner signs a Polymarket Call only when the answer is
 
 ## Polymarket (`pm-op-v1`, every new bot)
 
-The bot only signs the Call. HiveTrade places the Captain order in the Hive
-owner's own HiveTrade account, exactly like a Call the owner places, inside the
-Hive's per-Call cap and the total budget the owner set. The runner has no
+The bot only signs the Call: market, side and a price cap, with **no amount**.
+HiveTrade places the Captain order in the Hive owner's own HiveTrade account,
+exactly like a Call the owner places, staking the Hive's Amount per Call within
+the Total budget the owner set. The runner has no
 wallet, no order code and no Polymarket credentials on this path.
 
 `POST /api/bot/signal` with `{ signal, signature }`. The signal contains
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`,
-`stakeUsd`, `limitPrice`, `execution: "hivetrade-operator-v1"`, `nonce`,
-`issuedAt`, and `intent: true`. `limitPrice` is the highest price per share
+`limitPrice`, `execution: "hivetrade-operator-v1"`, `nonce`, `issuedAt`, and
+`intent: true`. No `stakeUsd`. `limitPrice` is the highest price per share
 (strictly between 0 and 1, on the market's tick, at most 4 decimals); no Member
 copy pays more either. No `orderType`, `signedOrder` or `fillResult`; any of
 them is refused (`400 PM_OP_SIGNAL_MALFORMED`). The signed message is:
@@ -61,7 +62,6 @@ venue:polymarket
 condition:<conditionId>
 side:<yes|no>
 signal:100
-stake:<stakeUsd>
 limitPrice:<limitPrice>
 execution:hivetrade-operator-v1
 nonce:<nonce>
@@ -121,19 +121,30 @@ This route uses the bot signature despite its `/admin` prefix.
 ## Kalshi
 
 The signal includes `venue: "kalshi"`, `execution: "hivetrade-v1"`, `intent: true`,
-`kalshiTicker`, `kalshiContracts`, `kalshiPriceCents`, plus common identity, side,
-`signalStrength` (always `100`), stake, nonce and timestamp fields. The message prefix is
-`HiveTrade bot signal kalshi-v2`. No Polymarket order fields are included.
+`kalshiTicker`, `kalshiPriceCents` (the highest price per contract), plus common
+identity, side, `signalStrength` (always `100`), nonce and timestamp fields. It
+carries **no amount**: no `stakeUsd` and no `kalshiContracts`. The signed message is:
 
-The API currently checks stake against:
-
+```text
+HiveTrade bot signal kalshi-v2
+hive:<hiveId>
+venue:kalshi
+ticker:<kalshiTicker>
+side:<yes|no>
+signal:100
+priceCents:<kalshiPriceCents>
+execution:hivetrade-v1
+nonce:<nonce>
+issuedAt:<issuedAt>
+intent:true
 ```
-feeCents = ceil(7 * contracts * priceCents * (100 - priceCents) / 10000)
-stakeUsd = (contracts * priceCents + feeCents) / 100
-```
 
-This is the API's signed maximum-cost contract, not a universal venue fee schedule.
-Only supported `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers pass the current API gate.
+HiveTrade sizes the Captain order from the Hive's Amount per Call: the most
+hundredths of a contract whose cost plus Kalshi's fee fit it, at most at
+`kalshiPriceCents`, within the Hive's Total budget. An older bot that still
+signs `stake:` and `contracts:` lines (after `signal:`) keeps verifying; one
+of the two without the other is refused. Only tickers in the series listed at
+https://docs.hivetrade.com/run-a-bot/kalshi pass the API's gate.
 
 HiveTrade owns execution through the operator's connected credential. The runner
 never holds that credential, places a second order, or posts a fill report. An

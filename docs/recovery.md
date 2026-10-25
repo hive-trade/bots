@@ -3,8 +3,8 @@
 ## Before a live attempt
 
 Run `npm run check` and `npm test`. Preview the exact market using dry-run mode.
-Confirm the selected venue, signer registration, Hive ID, account/wallet, maximum
-stake and price limit. Dry runs do not authenticate or place trades.
+Confirm the selected venue, signer registration, Hive ID, account/wallet, price
+limit, and the Hive's Amount per Call and Total budget (in Studio). Dry runs do not authenticate or place trades.
 
 ## After a live attempt
 

@@ -15,17 +15,22 @@ import { config } from '../lib/config.mjs';
 import { execute } from '../lib/run.mjs';
 // Public deterministic test key, never funded or used on a network.
 const account = privateKeyToAccount(`0x${'01'.repeat(32)}`);
+// A Call carries no amount: no stakeUsd. HiveTrade stakes the Hive's Amount per Call.
 const op = { hiveId: 4300, venue: 'polymarket', conditionId: '0xabc123', side: 'yes', signalStrength: 100,
-  stakeUsd: 1, limitPrice: 0.53, execution: PM_OP_EXECUTION, nonce: 'pmop-0xabc123', issuedAt: 1700000000000, intent: true };
+  limitPrice: 0.53, execution: PM_OP_EXECUTION, nonce: 'pmop-0xabc123', issuedAt: 1700000000000, intent: true };
 
 test('fixed pm-op-v1 signal vector (same bytes as HiveTrade\'s developer guide)', async () => {
   assert.equal(signalMessage(op), [
     'HiveTrade bot signal pm-op-v1', 'hive:4300', 'venue:polymarket', 'condition:0xabc123', 'side:yes',
-    'signal:100', 'stake:1', 'limitPrice:0.53', 'execution:hivetrade-operator-v1', 'nonce:pmop-0xabc123',
+    'signal:100', 'limitPrice:0.53', 'execution:hivetrade-operator-v1', 'nonce:pmop-0xabc123',
     'issuedAt:1700000000000', 'intent:true'].join('\n'));
   const signature = await account.signMessage({ message: signalMessage(op) });
   assert.equal(await recoverMessageAddress({ message: signalMessage(op), signature }), account.address);
   assert.notEqual(await recoverMessageAddress({ message: signalMessage({ ...op, limitPrice: 0.6 }), signature }), account.address);
+  // An amount cannot be added after signing; an older bot's shape (with a
+  // stake line) is different bytes, which HiveTrade still verifies as signed.
+  assert.notEqual(await recoverMessageAddress({ message: signalMessage({ ...op, stakeUsd: 1 }), signature }), account.address);
+  assert.match(signalMessage({ ...op, stakeUsd: 1 }), /\nsignal:100\nstake:1\nlimitPrice:0\.53\n/);
 });
 
 test('fixed pm-op-v1 exit vector and config message', () => {

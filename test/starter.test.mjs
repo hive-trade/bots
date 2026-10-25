@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { privateKeyToAccount } from 'viem/accounts';
 import { recoverMessageAddress } from 'viem';
-import { signalMessage, fillMessage, walletMessage, kalshiStake } from '../lib/protocol.mjs';
+import { signalMessage, fillMessage, walletMessage } from '../lib/protocol.mjs';
 import { config } from '../lib/config.mjs';
 import { interpretOrder } from '../lib/polymarket.mjs';
 import { execute } from '../lib/run.mjs';
@@ -23,10 +23,15 @@ test('fixed Polymarket wire vector and signature recovery', async () => {
   assert.equal(await recoverMessageAddress({ message: signalMessage(pm), signature }), account.address);
   assert.notEqual(await recoverMessageAddress({ message: signalMessage({ ...pm, stakeUsd: 2 }), signature }), account.address);
 });
-test('fixed Kalshi v2 vector and fee rounding', () => {
+test('fixed Kalshi v2 vectors: a Call with no amount, and the older shape with one', async () => {
+  // What this kit sends: no stake and no contract count. HiveTrade sizes the
+  // Call from the Amount per Call set on the Hive.
+  const { stakeUsd: _s, kalshiContracts: _c, ...noAmount } = kalshi;
+  assert.equal(signalMessage(noAmount), 'HiveTrade bot signal kalshi-v2\nhive:42\nvenue:kalshi\nticker:KXBTC15M-EXAMPLE\nside:no\nsignal:25\npriceCents:50\nexecution:hivetrade-v1\nnonce:test\nissuedAt:1789480000000\nintent:true');
+  // An older bot that still signs an amount keeps the original bytes.
   assert.equal(signalMessage(kalshi), 'HiveTrade bot signal kalshi-v2\nhive:42\nvenue:kalshi\nticker:KXBTC15M-EXAMPLE\nside:no\nsignal:25\nstake:0.52\ncontracts:1\npriceCents:50\nexecution:hivetrade-v1\nnonce:test\nissuedAt:1789480000000\nintent:true');
-  assert.equal(kalshiStake(1, 50), 0.52); assert.equal(kalshiStake(1, 2), 0.03);
-  assert.equal(kalshiStake(3, 50), 1.56);
+  const signature = await account.signMessage({ message: signalMessage(noAmount) });
+  assert.notEqual(await recoverMessageAddress({ message: signalMessage(kalshi), signature }), account.address, 'an amount cannot be added after signing');
 });
 test('fill and wallet binding fixed vectors', () => {
   assert.equal(fillMessage({ hiveId: 42, marketId: 9, fillResult: actual, nonce: 'n', issuedAt: 123 }),
@@ -43,7 +48,10 @@ test('a dry run needs no Hive ID; real trading and wallet registration do', () =
 test('configuration cannot silently enable trading or redirect signed requests', () => {
   const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };
   assert.equal(config(env).live, false);
-  for (const patch of [{ BOT_HIVE_ID: '1.5' }, { MAX_STAKE_USD: '-1' }, { BOT_LIVE_TRADING_ENABLED: 'yes' }, { BOT_API_URL: 'https://example.com' }]) assert.throws(() => config({ ...env, ...patch }));
+  for (const patch of [{ BOT_HIVE_ID: '1.5' }, { BOT_LIVE_TRADING_ENABLED: 'yes' }, { BOT_API_URL: 'https://example.com' }]) assert.throws(() => config({ ...env, ...patch }));
+  // Only a legacy self-managed Polymarket bot still reads its own stake.
+  assert.throws(() => config({ VENUE: 'polymarket', POLYMARKET_LEGACY_SELF_MANAGED: 'true', MAX_STAKE_USD: '-1' }));
+  assert.equal(config(env).stake, undefined);
 });
 test('a leftover SIGNAL_STRENGTH never changes the signed level: every Call copies at 100%', () => {
   const env = { VENUE: 'kalshi', BOT_HIVE_ID: '42' };

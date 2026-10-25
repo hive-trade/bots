@@ -17,9 +17,9 @@ Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
 I'm new to this, so explain each step in plain words.
 1. Clone the repository into a new folder, then read README.md and AGENTS.md.
 2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my own trading
-   rule in my own words, the exact market it trades (a link is fine), the most
-   it may spend per Call, and whether it should run on this computer or on a
-   server.
+   rule in my own words, the exact market it trades (a link is fine), the
+   Amount per Call (what each Call stakes) and the Total budget for the Hive,
+   and whether it should run on this computer or on a server.
 3. Tell me the command that creates the bot's signing key. I will run it myself
    and give you only the public address it prints. Never run it yourself, never
    open .env, and never ask me for the private key.
@@ -61,10 +61,11 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
 4. **You:** open it, check the signing address, and press **Create bot Hive**.
 5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
-6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: in
-   HiveTrade, set the bot's total budget and allow it to trade (in Studio, or
-   while you create the Hive). The bot trades from your own HiveTrade account,
-   so that account holds the money, not the bot.
+6. **You:** on the Hive, set its **Amount per Call** (what each Call stakes) and
+   its **Total budget**, when you create it or later in Studio. Kalshi: connect
+   your Kalshi API key and consent. Polymarket: allow the bot to trade (in
+   Studio, or while you create the Hive). The bot trades from your own HiveTrade
+   account, so that account holds the money, not the bot.
 7. **You:** turn on live trading, only when you decide to.
 
 Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
@@ -73,8 +74,10 @@ Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/
 
 - A small **user-selected side + maximum price** example, disabled until configured.
   It is a programming example, not a forecast or a promise of profit.
-- Polymarket: the bot signs the Call (side, stake, price cap) and HiveTrade
-  places the order in your own HiveTrade account, inside the bot's total budget.
+- A Call carries no amount. The bot sends the market, the side and a price cap;
+  each Call stakes the Amount per Call set on the Hive, within its Total budget.
+- Polymarket: the bot signs the Call and HiveTrade places the order in your own
+  HiveTrade account.
   No wallet, no order code and no Polymarket credentials in this runner. Older
   bots that place their own orders use a clearly marked legacy setting.
 - Kalshi: signed v2 intent; HiveTrade executes using the operator's connected account.
@@ -152,19 +155,28 @@ choose the venue, name the Hive, enter the **public signing address**, and give
 your agent the Hive ID the page shows (it saves it with `set_hive_id`), or run
 `npm run set-hive -- <ID>` yourself.
 
-**Spending limits.** The most your bot may spend per Call is set in two places,
-and both apply: the Hive's per-call cap (the `maxStake` on the Create form) and
-`MAX_STAKE_USD` in `.env`. Set both to the number you chose. The stake of each
-order is `STAKE_USD` (Polymarket) or `KALSHI_CONTRACTS` at the price cap
-(Kalshi), and it must fit both caps. On top of the per-Call cap, a Polymarket
-bot has the **total budget** you set in HiveTrade; HiveTrade skips a Call that
-would go past it. There is no daily limit: a run places at most one order on its
-market, and the kit never trades the same market twice.
+**Amount per Call and Total budget.** Both are set on the Hive, in HiveTrade:
+when you create it (the pre-filled link fills in the Amount per Call; you type
+the Total budget) and at any time later in Studio. Neither lives in `.env`, and
+the bot sends no amount with its Calls.
+
+- **Amount per Call** is what each Call stakes, the same way a Member's per-Call
+  budget sizes their copy. The order is still capped at your strategy's price
+  cap and the Call's price band, and it can fill partly or not at all.
+- **Total budget** is the most the bot can have at risk: live stakes plus losses
+  since you set it count as used, and wins refill it up to the total. When less
+  than the Amount per Call is left, the Call stakes what is left if that still
+  meets the exchange minimum, and is skipped otherwise.
+
+There is no daily limit: a run places at most one order on its market, and the
+kit never trades the same market twice. Older settings (`STAKE_USD`,
+`MAX_STAKE_USD`, `KALSHI_CONTRACTS`) are ignored, with a warning, except by a
+legacy Polymarket bot (below).
 
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
 Hive budget, and what the market can fill inside the Call's price limit. Your
-bot's stake does not set it.
+Hive's Amount per Call does not set it.
 
 ### Environments
 
@@ -197,9 +209,9 @@ failed preflight, not permission to bypass a restriction.
      series that is open right now. Useful for 15-minute series, whose markets
      close every 15 minutes. If several markets of the series are open at once,
      it lists them and you set `KALSHI_TICKER` to the one your rule trades.
-4. Set `KALSHI_CONTRACTS` (whole contracts; start with one). One Call costs at
-   most contracts x price cap + Kalshi's fee, and the dry run prints that sum.
-   It must fit both spending caps.
+4. Each Call stakes the Hive's Amount per Call: HiveTrade buys the most
+   hundredths of a contract whose cost plus Kalshi's fee fit it, at most at your
+   strategy's price cap. There is no contract count to set.
 
 **Your Kalshi API key** goes into HiveTrade, never into this kit. On kalshi.com
 (labels as seen on 2026-10-25): profile icon, **Account & security**, **API keys**,
@@ -227,13 +239,11 @@ markets and you pick the one your rule trades.
    polymarket.com link is not a slug: `npm run find-market -- <link>` turns it
    into one). You can create the Hive and run dry runs today.
 2. **The bot trades from your own HiveTrade account.** The bot signs the Call
-   (side, `STAKE_USD`, and your strategy's `maxPrice` as the price cap) and
+   (the side, and your strategy's `maxPrice` as the price cap; no amount) and
    HiveTrade places the order in your account, exactly like a Call you place
-   yourself. In HiveTrade, set the bot's **total budget** and **allow the bot to
-   trade** (in Studio, or while you create the Hive). The total budget is the
-   most the bot can have at risk: live stakes plus losses since you set it count
-   as used, and wins refill it up to the total. Budgets your Members set aside
-   are never touched. There is nothing to fund for the bot itself: never send
+   yourself, staking the Hive's **Amount per Call** within its **Total budget**.
+   In HiveTrade, set both amounts and **allow the bot to trade** (in Studio, or
+   while you create the Hive). Budgets your Members set aside are never touched. There is nothing to fund for the bot itself: never send
    money to the bot's signing address, never sign in to Polymarket as the bot,
    and never import the bot's key into a wallet app.
 3. Before each live run the bot checks, with a request signed by its key, that
@@ -241,7 +251,9 @@ markets and you pick the one your rule trades.
 
 **Older Polymarket bots (legacy).** A bot created before this change may still
 place its own order from a deposit wallet its operator set up. Only such a bot
-sets `POLYMARKET_LEGACY_SELF_MANAGED=true` and `POLYMARKET_DEPOSIT_WALLET`
+sets `POLYMARKET_LEGACY_SELF_MANAGED=true` and `POLYMARKET_DEPOSIT_WALLET`, and
+still signs its own `STAKE_USD` (at most `MAX_STAKE_USD` and the Hive's Amount
+per Call), because it buys from its own wallet
 (**register the wallet**: `npm run bind-wallet`, same as
 `npm run register-wallet`; see [the protocol](docs/protocol.md)). This path
 goes away once every older bot has moved to your HiveTrade account; new bots
@@ -284,7 +296,8 @@ that a live order will fill.
 
 ## 5. Enable only when you intend to trade
 
-Review the exact market, side, price cap, stake, strategy and venue account.
+Review the exact market, side, price cap, strategy, venue account, and the
+Hive's Amount per Call and Total budget in Studio.
 Set `BOT_LIVE_TRADING_ENABLED=true` locally and run `npm start` once. This can
 place real orders and trigger follower copies. Check the venue receipt and Hive
 Call together before considering the integration verified.
