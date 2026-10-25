@@ -31,7 +31,7 @@ same server, see [Other MCP clients](#other-mcp-clients).
 | Read the Hive ID back and save it to `.env` | Agent |
 | Check the signing address on the form and press **Create bot Hive** | You |
 | Kalshi: connect your Kalshi API key in HiveTrade Settings and give the execution consent | You |
-| Polymarket: nothing yet. Live trading for new bots is not self-serve; they will trade from your own HiveTrade account | |
+| Polymarket: set the bot's total budget and allow it to trade in HiveTrade (Studio, or while creating the Hive). The bot trades from your own HiveTrade account | You |
 | Turn on live trading (`BOT_LIVE_TRADING_ENABLED=true`) | You |
 | On a server: put the signing key in the host's secret settings | You |
 
@@ -68,10 +68,10 @@ same server, see [Other MCP clients](#other-mcp-clients).
    requests signed by the bot's key, so it also works for a Private Hive (the
    form's default), and shows the name, venue and per-call cap.
 10. **Venue setup (you).** Kalshi: connect your Kalshi API key in HiveTrade
-    Settings and give the execution consent. Polymarket: live trading for a
-    new bot is not self-serve yet; new Polymarket bots will trade from your own
-    HiveTrade account once HiveTrade finishes that part. Nothing to fund, no
-    Polymarket sign-in, no wallet app, no key import.
+    Settings and give the execution consent. Polymarket: in HiveTrade, set the
+    bot's total budget and allow it to trade (in Studio, or while creating the
+    Hive). The bot trades from your own HiveTrade account: nothing to fund for
+    the bot, no Polymarket sign-in, no wallet app, no key import.
     The agent runs `dry_run` again.
 11. **Hosting (optional).** The agent calls `get_deploy_guide` and follows the
     `hivetrade-deploy` skill. Today this is practice only: a scheduled dry run

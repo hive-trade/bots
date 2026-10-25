@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { privateKeyToAccount } from 'viem/accounts';
 import { config, positive } from './lib/config.mjs';
-import { jsonRequest, kalshiStake } from './lib/protocol.mjs';
-import { discoverPolymarket, preparePolymarket } from './lib/polymarket.mjs';
+import { jsonRequest, kalshiStake, readBotConfig, PM_OP_EXECUTION } from './lib/protocol.mjs';
+import { discoverPolymarket, operatorLimitPrice, preparePolymarket } from './lib/polymarket.mjs';
 import { strategy } from './strategy.mjs';
 import { execute } from './lib/run.mjs';
 import { SafeError, stopMessage } from './lib/errors.mjs';
 import { isSupportedKalshiTicker, isSupportedKalshiSeries, kalshiSeriesOf, pickOpenMarket } from './lib/kalshi-markets.mjs';
 let stage = 'configuration';
+const OPERATOR_NOT_READY = 'This Hive does not trade from your HiveTrade account yet. In HiveTrade, open the bot in Studio, set its total budget and allow the bot to trade (the same step is part of creating the Hive), then run again. A bot created before this change: see "Older Polymarket bots" in the README.';
 const price = p => (Number.isFinite(p) ? `$${p.toFixed(3).replace(/0$/, '')}` : 'no ask');
 // The strategy may explain itself: `reasons` is a list of short text lines,
 // printed as TRACE lines so the person can see why the rule did or did not trade.
@@ -74,7 +75,13 @@ async function main() {
       kalshiContracts: contracts, kalshiPriceCents: cents, stakeUsd: kalshiStake(contracts, cents) };
     const orderUsd = contracts * cents / 100;
     console.log(`TRACE cost of one Call on Kalshi: at most $${signal.stakeUsd.toFixed(2)} = ${contracts} contract${contracts === 1 ? '' : 's'} x $${(cents / 100).toFixed(2)} price cap ($${orderUsd.toFixed(2)}) + Kalshi fee up to $${(signal.stakeUsd - orderUsd).toFixed(2)}`);
-  } else signal = { ...signal, conditionId: market.conditionId, orderType: 'marketable', stakeUsd: positive(process.env.STAKE_USD ?? 1, 'STAKE_USD') };
+  } else {
+    // New Polymarket bots sign a pm-op-v1 Call: HiveTrade places the order in
+    // your own HiveTrade account (limitPrice is added at live time). Only an
+    // older bot with POLYMARKET_LEGACY_SELF_MANAGED=true signs the v1 intent.
+    signal = { ...signal, conditionId: market.conditionId, stakeUsd: positive(process.env.STAKE_USD ?? 1, 'STAKE_USD'),
+      ...(cfg.legacySelfManaged ? { orderType: 'marketable' } : { execution: PM_OP_EXECUTION }) };
+  }
   if (signal.stakeUsd > cfg.maxStake) throw new SafeError(`This trade's stake ($${signal.stakeUsd}) is above MAX_STAKE_USD ($${cfg.maxStake}). ${cfg.venue === 'kalshi' ? 'KALSHI_CONTRACTS at this price' : 'STAKE_USD'} must fit the cap you chose.`);
   console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: decision.maxPrice, maximumStakeUsd: signal.stakeUsd }));
   if (!cfg.live) return; // No signer, auth, intent, order or fill submission in dry run.
@@ -84,8 +91,18 @@ async function main() {
   const budget = await jsonRequest(`${cfg.api}/api/bot/budget`, { issuedAt,
     signature: await account.signMessage({ message: `hivetrade:bot-budget:${issuedAt}` }) });
   if (budget.hiveId !== cfg.hiveId || !Number.isFinite(budget.maxStakeUsd) || signal.stakeUsd > budget.maxStakeUsd) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID, or the stake is above the Hive\'s per-call cap.');
-  stage = 'Polymarket order preparation';
-  const submitOrder = cfg.venue === 'polymarket' ? await preparePolymarket(account, cfg, market, decision, signal.stakeUsd) : undefined;
+  let submitOrder;
+  if (cfg.venue === 'polymarket' && !cfg.legacySelfManaged) {
+    stage = 'Hive mode check';
+    const mode = await readBotConfig({ account, api: cfg.api });
+    if (mode.hiveId !== cfg.hiveId) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID.');
+    if (mode.pmCaptainExecution !== 'operator') throw new SafeError(OPERATOR_NOT_READY);
+    stage = 'Polymarket price step lookup';
+    signal.limitPrice = await operatorLimitPrice(market, decision);
+  } else if (cfg.venue === 'polymarket') {
+    stage = 'Polymarket order preparation (legacy self-managed bot)';
+    submitOrder = await preparePolymarket(account, cfg, market, decision, signal.stakeUsd);
+  }
   signal.issuedAt = Date.now();
   stage = 'live execution: inspect journal';
   const result = await execute({ cfg, account, signal, submitOrder, request: jsonRequest });

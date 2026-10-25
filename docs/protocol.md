@@ -28,16 +28,73 @@ Hive even when that Hive is Private, which the public `GET /api/hives/<id>` cann
 see. HTTP 401 with `signer is not a registered bot` means no Hive uses this
 signing address on that environment.
 
-## Polymarket
+## Mode check
+
+`GET /api/bot/config` with headers `x-bot-signature`, `x-bot-issued-at` and
+`x-bot-capabilities: pm-op-v1`, signing
+`hivetrade:bot-config:<issuedAt>:capabilities:pm-op-v1` (with no capabilities
+header, the message is `hivetrade:bot-config:<issuedAt>`). It answers
+`{ hiveId, venue, pmCaptainExecution, signalVersion }`. The declaration is part
+of the signed bytes; HiveTrade moves a Hive to `operator` only after its bot
+declared `pm-op-v1`. The runner signs a Polymarket Call only when the answer is
+`operator`.
+
+## Polymarket (`pm-op-v1`, every new bot)
+
+The bot only signs the Call. HiveTrade places the Captain order in the Hive
+owner's own HiveTrade account, exactly like a Call the owner places, inside the
+Hive's per-Call cap and the total budget the owner set. The runner has no
+wallet, no order code and no Polymarket credentials on this path.
 
 `POST /api/bot/signal` with `{ signal, signature }`. The signal contains
-`hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
-`orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
+`hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`,
+`stakeUsd`, `limitPrice`, `execution: "hivetrade-operator-v1"`, `nonce`,
+`issuedAt`, and `intent: true`. `limitPrice` is the highest price per share
+(strictly between 0 and 1, on the market's tick, at most 4 decimals); no Member
+copy pays more either. No `orderType`, `signedOrder` or `fillResult`; any of
+them is refused (`400 PM_OP_SIGNAL_MALFORMED`). The signed message is:
+
+```text
+HiveTrade bot signal pm-op-v1
+hive:<hiveId>
+venue:polymarket
+condition:<conditionId>
+side:<yes|no>
+signal:100
+stake:<stakeUsd>
+limitPrice:<limitPrice>
+execution:hivetrade-operator-v1
+nonce:<nonce>
+issuedAt:<issuedAt>
+intent:true
+```
+
+Answers: `201` with the Call's `marketId` (an accepted Call is not a claim of
+a fill: check the Hive); `200 { skipped: true, code }` when HiveTrade skipped
+the Call and wrote nothing (for example `BOT_TOTAL_BUDGET_REACHED`, or
+`PM_OPERATOR_EXECUTION_NOT_ENABLED`); `409 PM_CAPTAIN_EXECUTED_BY_HIVETRADE`
+when the Hive trades from the owner's account and received another signal shape.
+A timeout is ambiguous: do not resend. HiveTrade may already have placed it.
+
+An early exit is `POST /api/bot/exit` with `{ request, signature }`, `request` =
+`{ hiveId, conditionId, side, execution: "hivetrade-operator-v1", nonce,
+issuedAt }`, signed over `HiveTrade bot exit pm-op-v1` / `hive:` / `venue:polymarket` /
+`condition:<lowercase>` / `side:` / `execution:hivetrade-operator-v1` / `nonce:` /
+`issuedAt:` (one per line, `lib/protocol.mjs` `exitMessage`). HiveTrade sells the
+Captain position and the Hive's Members. The one-shot runner does not use it.
 
 `signalStrength` is a fixed compatibility field of the signed message: always
 send `100`, as the example does. HiveTrade ignores its value. Each Member's copy
 is their own per-call budget, reduced only by their tier cap, what is left in
 their Hive budget, and the depth available inside the Call's price limit.
+
+## Polymarket legacy (older self-managed bots only)
+
+Only a bot created before the change above, with
+`POLYMARKET_LEGACY_SELF_MANAGED=true`, uses this path. It goes away once every
+older bot has moved. The signal contains `hiveId`, `venue: "polymarket"`,
+`conditionId`, `side`, `signalStrength`, `stakeUsd`, `orderType: "marketable"`,
+`nonce`, `issuedAt`, and `intent: true`.
 
 Only an explicit `go: true` with a valid returned `id` authorizes the local Captain
 order. `go: false` means do not fire. A timeout is ambiguous; do not retry with a
@@ -53,11 +110,6 @@ Delayed/live responses, HTTP errors, network failures and malformed responses
 halt for reconciliation. An order ID alone is not evidence of a fill. API-owned
 follower orders can remain even when the Captain fails: never report a fabricated
 no-fill or assume everything was canceled.
-
-The Captain leg above (own deposit wallet, local order, fill report) is how
-older Polymarket bots trade. New Polymarket bots will instead trade from the Hive
-owner's own HiveTrade account, with the bot only signing the Call; that API is not
-available yet, and this section will change when it is.
 
 Register the wallet (`npm run bind-wallet`, same as `npm run register-wallet`),
 for bots created before that, whose operator set up the wallet:

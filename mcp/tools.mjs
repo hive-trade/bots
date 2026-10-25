@@ -58,11 +58,13 @@ function hiveIdOf(value) {
   if (!Number.isSafeInteger(id) || id <= 0 || String(value).trim() !== String(id)) throw new Error('hiveId must be a positive whole number');
   return id;
 }
-// Polymarket live trading for NEW bots is not self-serve yet (owner decision
-// 2026-10-25): HiveTrade will place the Captain leg in the Hive owner's own
-// HiveTrade account, and the bot will only sign Calls. Until that API lands,
-// a new Polymarket bot can be created and dry-run, not traded live.
-const POLYMARKET_NOT_SELF_SERVE = 'Polymarket live trading for new bots is not self-serve yet: new Polymarket bots will trade from the person\'s own HiveTrade account, which HiveTrade is still building. Creating the Hive and dry runs work today. Never tell the person to fund a bot address, sign in to Polymarket as the bot, or import the bot\'s key into a wallet app.';
+// New Polymarket bots trade from the Hive owner's own HiveTrade account (owner
+// decision 2026-10-25): the bot only signs the Call (pm-op-v1) and HiveTrade
+// places the Captain order. The person's own step is in HiveTrade: a total
+// budget for the bot and allowing it to trade. Older bots with their own
+// deposit wallet set POLYMARKET_LEGACY_SELF_MANAGED=true (the person's choice).
+const POLYMARKET_OWNER_STEP = 'New Polymarket bots trade from the person\'s own HiveTrade account: the bot only signs the Call and HiveTrade places the order there. Before live trading the person, in HiveTrade, sets the bot\'s total budget and allows the bot to trade (in Studio, or while creating the Hive), with funds in their own HiveTrade account. Never tell the person to fund a bot address, sign in to Polymarket as the bot, or import the bot\'s key into a wallet app.';
+const legacyPolymarket = env => env.POLYMARKET_LEGACY_SELF_MANAGED === 'true';
 async function readJson(response) {
   try { return await response.json(); } catch { return null; }
 }
@@ -83,7 +85,8 @@ export function setupStatus({ dir, deps }) {
     status.environment = environmentForApi(status.apiUrl) ?? 'unknown';
     status.hiveId = env.BOT_HIVE_ID || null;
     if (env.VENUE === 'polymarket') {
-      status.polymarketDepositWallet = ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null;
+      // Older bots only: their own deposit wallet (legacy self-managed path).
+      if (legacyPolymarket(env)) status.polymarketDepositWallet = ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null;
       status.market = env.MARKET_SLUG || null;
     }
     if (env.VENUE === 'kalshi') status.market = env.KALSHI_TICKER || (env.KALSHI_SERIES ? `series ${env.KALSHI_SERIES} (the market open right now)` : null);
@@ -95,7 +98,7 @@ export function setupStatus({ dir, deps }) {
     : !status.signingAddress ? 'The signing key in .env is missing or malformed. The person restores .env from their backup; never paste a key in chat, and never open .env.'
     : !status.hiveId ? 'Create the Hive: prepare_registration, then check_registration once the person pressed Create.'
     : !status.market ? 'Choose the exact market (KALSHI_TICKER or MARKET_SLUG) and implement the strategy, then dry_run.'
-    : env.VENUE === 'polymarket' && !status.polymarketDepositWallet ? `Run the tests and dry_run. ${POLYMARKET_NOT_SELF_SERVE}`
+    : env.VENUE === 'polymarket' && !legacyPolymarket(env) ? `Run the tests and dry_run. ${POLYMARKET_OWNER_STEP} Live trading stays off until the person decides otherwise.`
     : 'Run the tests and dry_run. Live trading stays off until the person decides otherwise.';
   return status;
 }
@@ -200,7 +203,7 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
     if (previous.hiveId && previous.hiveId !== String(hiveId)) changed.push(`BOT_HIVE_ID was ${previous.hiveId}`);
     if (venue && previous.venue && previous.venue !== venue) changed.push(`VENUE was ${previous.venue}`);
     return { registered: true, environment, hiveId, name: body?.name ?? null, handle: body?.handle ?? null, venue,
-      ...(venue === 'polymarket' && !ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? { polymarketLiveTrading: POLYMARKET_NOT_SELF_SERVE } : {}),
+      ...(venue === 'polymarket' && !legacyPolymarket(env) ? { polymarketLiveTrading: POLYMARKET_OWNER_STEP } : {}),
       wroteToEnv: Object.keys(updates), ...(changed.length ? { replaced: changed } : {}) };
   }
   if (response.status === 404 && body?.code === 'BOT_NOT_REGISTERED') {
@@ -254,7 +257,7 @@ export async function botStatus({ dir, deps, fetch = globalThis.fetch, now = Dat
     paused: typeof budget.body.paused === 'boolean' ? budget.body.paused : null, page: `${web}/hive/${hiveId}` };
   const who = await signedRead({ api, path: '/api/bot/whoami', message: 'hivetrade:bot-whoami', account, fetch, now }).catch(() => null);
   if (who?.status === 200) Object.assign(status, { name: who.body?.name ?? null, handle: who.body?.handle ?? null, venue: who.body?.venue ?? null });
-  if ((status.venue ?? env.VENUE) === 'polymarket' && !ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '')) status.polymarketLiveTrading = POLYMARKET_NOT_SELF_SERVE;
+  if ((status.venue ?? env.VENUE) === 'polymarket' && !legacyPolymarket(env)) status.polymarketLiveTrading = POLYMARKET_OWNER_STEP;
   // Public page data is extra. A Private Hive is not public, and that is expected.
   const response = await fetch(`${api}/api/hives/${hiveId}`, { redirect: 'error', signal: AbortSignal.timeout(30000) }).catch(() => null);
   if (response?.ok) {

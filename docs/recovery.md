@@ -23,7 +23,14 @@ second concurrent process. A process crash can leave the lock behind.
 The server may have accepted the signal and started orders. Check the Hive and
 venue before any retry. Do not send a new nonce or a compensating order.
 
-### Polymarket order uncertain
+### Polymarket Call accepted or timed out (new bots)
+
+HiveTrade places the order in your own HiveTrade account. An accepted Call is
+not a fill: check the Hive and your HiveTrade account. After a timeout,
+HiveTrade may already have placed it; do not resend, and never place an order
+yourself.
+
+### Polymarket order uncertain (legacy self-managed bots)
 
 Inspect the actual account's orders and fills using the venue's supported tools.
 A delayed/live order, rejected request or network failure is not enough evidence

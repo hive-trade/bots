@@ -61,9 +61,10 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
 4. **You:** open it, check the signing address, and press **Create bot Hive**.
 5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
-6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: live
-   trading for new bots is not self-serve yet; they will trade from your own
-   HiveTrade account once HiveTrade finishes that part.
+6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: in
+   HiveTrade, set the bot's total budget and allow it to trade (in Studio, or
+   while you create the Hive). The bot trades from your own HiveTrade account,
+   so that account holds the money, not the bot.
 7. **You:** turn on live trading, only when you decide to.
 
 Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
@@ -72,9 +73,10 @@ Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/
 
 - A small **user-selected side + maximum price** example, disabled until configured.
   It is a programming example, not a forecast or a promise of profit.
-- Polymarket: dry runs and Hive creation today. Live trading for new bots is not
-  self-serve yet (they will trade from your own HiveTrade account). Older bots
-  keep their own deposit wallet, local order and fill report.
+- Polymarket: the bot signs the Call (side, stake, price cap) and HiveTrade
+  places the order in your own HiveTrade account, inside the bot's total budget.
+  No wallet, no order code and no Polymarket credentials in this runner. Older
+  bots that place their own orders use a clearly marked legacy setting.
 - Kalshi: signed v2 intent; HiveTrade executes using the operator's connected account.
   No Kalshi private key belongs in this runner.
 - Local key creation, spending checks, persistent duplicate prevention,
@@ -82,8 +84,8 @@ Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/
 
 The runner checks **one exact market once, then exits**. Start here before adding
 market discovery or a timed loop. It does not manage exits, wrapping, redemption,
-or a portfolio. Polymarket wallet operations remain your responsibility through
-the venue's supported tools. Kalshi handles settlement in your Kalshi account.
+or a portfolio. Polymarket positions sit in your own HiveTrade account and
+settle there; Kalshi handles settlement in your Kalshi account.
 
 ## 1. Install and create an identity
 
@@ -154,8 +156,10 @@ your agent the Hive ID the page shows (it saves it with `set_hive_id`), or run
 and both apply: the Hive's per-call cap (the `maxStake` on the Create form) and
 `MAX_STAKE_USD` in `.env`. Set both to the number you chose. The stake of each
 order is `STAKE_USD` (Polymarket) or `KALSHI_CONTRACTS` at the price cap
-(Kalshi), and it must fit both caps. There is no daily limit: a run places at
-most one order on its market, and the kit never trades the same market twice.
+(Kalshi), and it must fit both caps. On top of the per-Call cap, a Polymarket
+bot has the **total budget** you set in HiveTrade; HiveTrade skips a Call that
+would go past it. There is no daily limit: a run places at most one order on its
+market, and the kit never trades the same market twice.
 
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their
@@ -222,19 +226,27 @@ markets and you pick the one your rule trades.
 1. Set `VENUE=polymarket` and an exact binary Yes/No `MARKET_SLUG` (a
    polymarket.com link is not a slug: `npm run find-market -- <link>` turns it
    into one). You can create the Hive and run dry runs today.
-2. **Live trading for a new Polymarket bot is not self-serve yet.** New
-   Polymarket bots will trade from your own HiveTrade account: the bot signs the
-   Call and HiveTrade places the order in your account. HiveTrade is still
-   building that part. Until it is ready, there is nothing to fund for the bot.
-   Never send money to the bot's signing address, never sign in to Polymarket as
-   the bot, and never import the bot's key into a wallet app.
+2. **The bot trades from your own HiveTrade account.** The bot signs the Call
+   (side, `STAKE_USD`, and your strategy's `maxPrice` as the price cap) and
+   HiveTrade places the order in your account, exactly like a Call you place
+   yourself. In HiveTrade, set the bot's **total budget** and **allow the bot to
+   trade** (in Studio, or while you create the Hive). The total budget is the
+   most the bot can have at risk: live stakes plus losses since you set it count
+   as used, and wins refill it up to the total. Budgets your Members set aside
+   are never touched. There is nothing to fund for the bot itself: never send
+   money to the bot's signing address, never sign in to Polymarket as the bot,
+   and never import the bot's key into a wallet app.
+3. Before each live run the bot checks, with a request signed by its key, that
+   its Hive trades from your account. If it does not yet, it stops and says so.
 
-**Older bots only.** A bot created before this change trades from a deposit
-wallet its operator set up and registered (**register the wallet**:
-`npm run bind-wallet`, same as `npm run register-wallet`; see
-[the protocol](docs/protocol.md)). That keeps working; new bots do not use it.
-The starter does not redeem winnings. Follow the venue's eligibility rules; a
-server does not change regional eligibility.
+**Older Polymarket bots (legacy).** A bot created before this change may still
+place its own order from a deposit wallet its operator set up. Only such a bot
+sets `POLYMARKET_LEGACY_SELF_MANAGED=true` and `POLYMARKET_DEPOSIT_WALLET`
+(**register the wallet**: `npm run bind-wallet`, same as
+`npm run register-wallet`; see [the protocol](docs/protocol.md)). This path
+goes away once every older bot has moved to your HiveTrade account; new bots
+never use it. Follow the venue's eligibility rules; a server does not change
+regional eligibility.
 
 ## 4. Implement your idea and preview it
 

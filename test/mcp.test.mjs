@@ -93,7 +93,7 @@ test('get_setup_status reports progress and never includes the key', async t => 
   makeIdentity(dir);
   const key = keyOf(dir);
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8')
-    .replace('VENUE=kalshi', 'VENUE=polymarket').replace('POLYMARKET_DEPOSIT_WALLET=', `POLYMARKET_DEPOSIT_WALLET=0x${'ab'.repeat(20)}`));
+    .replace('VENUE=kalshi', 'VENUE=polymarket').replace('POLYMARKET_DEPOSIT_WALLET=', `POLYMARKET_DEPOSIT_WALLET=0x${'ab'.repeat(20)}\nPOLYMARKET_LEGACY_SELF_MANAGED=true`));
   const result = await callTool('get_setup_status', {}, { dir, deps });
   assert.ok(!text(result).includes(key)); assert.doesNotMatch(text(result), SECRET);
   const status = json(result);
@@ -169,20 +169,20 @@ test('check_registration signs whoami and writes BOT_HIVE_ID, keeping other line
   assert.equal(after, expected);
 });
 
-test('Polymarket: no tool sends the person to fund a bot address; it says live trading is not self-serve yet', async t => {
-  // Owner 2026-10-25: new bots will trade from the owner's own HiveTrade account (API not built yet).
+test('Polymarket: no tool sends the person to fund a bot address; it names the owner\'s budget and allow step in HiveTrade', async t => {
+  // Owner 2026-10-25: new bots trade from the owner's own HiveTrade account (pm-op-v1).
   const dir = kit(t);
   makeIdentity(dir);
   const reg = await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(200, { hiveId: 77, venue: 'polymarket', depositWallet: `0x${'cd'.repeat(20)}` }) });
   const out = json(reg);
-  assert.ok(!out.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET')); assert.match(out.polymarketLiveTrading, /not self-serve yet/);
+  assert.ok(!out.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET')); assert.match(out.polymarketLiveTrading, /total budget/);
   const status = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 77, maxStakeUsd: 1 }], whoami: [200, { hiveId: 77, venue: 'polymarket' }] }) });
   assert.match(json(status).polymarketLiveTrading, /own HiveTrade account/);
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('MARKET_SLUG=', 'MARKET_SLUG=my-market'));
   mkdirSync(join(dir, 'node_modules', 'viem'), { recursive: true });
   const setup = json(await callTool('get_setup_status', {}, { dir, deps }));
   for (const line of [JSON.stringify(out), setup.nextStep, text(status)]) assert.doesNotMatch(line, /send funds|fund the bot|deposit wallet address|bind-wallet/i);
-  assert.match(setup.nextStep, /not self-serve yet/);
+  assert.match(setup.nextStep, /allows the bot to trade/);
 });
 test('check_registration explains not-created, missing route and clock skew without writing', async t => {
   const dir = kit(t);

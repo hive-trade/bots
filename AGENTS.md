@@ -36,11 +36,14 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
    and presses Create; you never submit it. Bot Hives have no agreement checkbox. Then read the Hive
    ID with the signed lookup (MCP `check_registration`); if the API lacks it, ask
    for the ID the page showed (`set_hive_id`). The manual form is the fallback.
-   The user performs account consent and the Kalshi key connection. Polymarket
-   live trading for new bots is not self-serve yet: they will trade from the
-   user's own HiveTrade account, which HiveTrade is still building. Say so
-   plainly. Never tell the user to fund a bot address, sign in to Polymarket as
-   the bot, or import the bot's key into a wallet app. Never request a private key in chat.
+   The user performs account consent and the Kalshi key connection. A new
+   Polymarket bot trades from the user's own HiveTrade account: the bot only
+   signs the Call and HiveTrade places the order. The user sets the bot's total
+   budget and allows the bot to trade in HiveTrade (Studio, or while creating
+   the Hive); you never do that step. Never tell the user to fund a bot address,
+   sign in to Polymarket as the bot, or import the bot's key into a wallet app.
+   Never set `POLYMARKET_LEGACY_SELF_MANAGED` for a new bot: it is only for
+   older bots that place their own orders. Never request a private key in chat.
 3. Implement the user's rule in strategy.mjs. Keep execution separate from the
    strategy. No copying built-in HiveTrade strategies or private code. Replace
    test/example-strategy.test.mjs with tests for the user's rule; the other test
