@@ -128,8 +128,12 @@ Manual fallback: sign in at Create a bot Hive
 choose the venue, name the Hive, enter the **public signing address**, and give
 your agent the Hive ID the page shows (it saves it with `set_hive_id`).
 
-Set the Hive's per-call cap in the app and `MAX_STAKE_USD` locally.
-The legacy daily-budget field is not an enforced daily spending limit.
+**Spending limits.** The most your bot may spend per Call is set in two places,
+and both apply: the Hive's per-call cap (the `maxStake` on the Create form) and
+`MAX_STAKE_USD` in `.env`. Set both to the number you chose. The stake of each
+order is `STAKE_USD` (Polymarket) or `KALSHI_CONTRACTS` at the price cap
+(Kalshi), and it must fit both caps. There is no daily limit: a run places at
+most one order on its market, and the kit never trades the same market twice.
 
 **How Members' copies are sized.** Each Member's copy of your Call is their own
 per-call budget, in full, reduced only by their tier cap, what is left in their

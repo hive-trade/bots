@@ -41,7 +41,10 @@ Ask, reusing anything already said:
    (HiveTrade creates the bot's deposit wallet with the Hive; the user funds it).
 2. Bot name (3 to 40 characters), a one-line description, and a category.
 3. The strategy idea in plain language, and the exact market.
-4. Per-call cap in USD (1 to 100) for the Hive, and `MAX_STAKE_USD` locally.
+4. The most it may spend per Call, in USD (1 to 100). Use that one number for the
+   Hive's per-call cap and `MAX_STAKE_USD`, and keep `STAKE_USD` (or the Kalshi
+   contracts at the price cap) at or below it. Never describe a daily limit:
+   there is none.
 5. Where it runs: this computer, or a host (Railway helper available).
 6. Environment: production (default, app.hivetrade.com) or dev
    (dev.hivetrade.com). Say plainly that dev also trades real money on Polymarket

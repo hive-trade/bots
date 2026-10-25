@@ -18,7 +18,9 @@ See [agent setup](agent-setup.md#registration-protocol).
 
 `POST /api/bot/budget` with `{ issuedAt, signature }`, signing
 `hivetrade:bot-budget:<issuedAt>`. Validate `hiveId` and `maxStakeUsd` from its
-response. This does not reserve funds or guarantee acceptance. The API applies
+response. Its daily-budget fields (`dailyBudgetUsd`, `remainingUsd`) are legacy
+figures and limit nothing; do not show them as a limit. This does not reserve
+funds or guarantee acceptance. The API applies
 its other authentication, venue, balance, consent and execution gates on submit.
 
 It is also the status check after registration: it answers for the signer's own
