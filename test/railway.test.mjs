@@ -79,6 +79,8 @@ test('preview wrapper removes signing keys, forces dry run, checks storage and r
     writeFileSync(bot, `if (process.env.BOT_PRIVATE_KEY || process.env.NODE_OPTIONS || process.env.SIGNAL_STRENGTH || process.env.BOT_LIVE_TRADING_ENABLED !== 'false') process.exit(1); console.log(JSON.stringify({mode:'DRY RUN'}));`);
     assert.equal(await preview(env, { directory, bot }), true);
     assert.equal(await preview({ ...env, RAILWAY_VOLUME_MOUNT_PATH: '/wrong' }, { directory, bot }), false);
+    writeFileSync(bot, `console.log('TRACE asks: YES $0.40, NO $0.60'); console.log('SKIP: your rule did not select a trade.');`);
+    assert.equal(await preview(env, { directory, bot }), true, 'a skip is a valid preview');
     writeFileSync(bot, `console.log(JSON.stringify({mode:'DRY RUN'})); process.exit(1);`);
     assert.equal(await preview(env, { directory, bot }), false);
     writeFileSync(bot, `console.log('not evidence');`);

@@ -26,7 +26,7 @@ export async function preview(env = process.env, { directory = '/data/hivetrade'
         // Never forward custom-strategy output, which could contain sensitive values.
         const lines = buffer.split('\n'); buffer = lines.pop().slice(-4096);
         for (const line of lines) {
-          if (line === 'SKIP: example rule did not select a trade.') evidence = true;
+          if (line.startsWith('SKIP: ')) evidence = true;
           try { if (JSON.parse(line).mode === 'DRY RUN') evidence = true; } catch {}
         }
       });

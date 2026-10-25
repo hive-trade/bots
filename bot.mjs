@@ -6,6 +6,14 @@ import { discoverPolymarket, preparePolymarket } from './lib/polymarket.mjs';
 import { strategy } from './strategy.mjs';
 import { execute } from './lib/run.mjs';
 let stage = 'configuration';
+const price = p => (Number.isFinite(p) ? `$${p.toFixed(3).replace(/0$/, '')}` : 'no ask');
+// The strategy may explain itself: `reasons` is a list of short text lines,
+// printed as TRACE lines so the person can see why the rule did or did not trade.
+function traceLines(reasons) {
+  if (reasons === undefined) return [];
+  if (!Array.isArray(reasons) || reasons.some(r => typeof r !== 'string')) throw new Error('Strategy reasons must be a list of text lines');
+  return reasons.slice(0, 20).map(r => r.replace(/[\r\n]+/g, ' ').slice(0, 300));
+}
 async function main() {
   const cfg = config();
   if (cfg.hiveId === null) console.log('NOTE: BOT_HIVE_ID is not set yet. A dry run does not need it; real trading does.');
@@ -24,9 +32,12 @@ async function main() {
       yesAsk: m.yes_ask_dollars != null ? Number(m.yes_ask_dollars) : Number(m.yes_ask) / 100,
       noAsk: m.no_ask_dollars != null ? Number(m.no_ask_dollars) : Number(m.no_ask) / 100 };
   }
+  console.log(`TRACE market ${market.id}: ${market.question ?? 'no question text'}`);
+  console.log(`TRACE asks: YES ${price(market.yesAsk)}, NO ${price(market.noAsk)}`);
   stage = 'strategy configuration';
   const decision = strategy(market);
-  if (!decision) { console.log('SKIP: example rule did not select a trade.'); return; }
+  for (const line of traceLines(decision?.reasons)) console.log(`TRACE ${line}`);
+  if (!decision || decision.skip === true) { console.log('SKIP: your rule did not select a trade.'); return; }
   // A replacement strategy must keep the same bounded output contract.
   if (!['yes', 'no'].includes(decision.side)) throw new Error('Invalid strategy side');
   positive(decision.maxPrice, 'strategy maxPrice', 0.99);

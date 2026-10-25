@@ -154,9 +154,14 @@ eligibility rules; a server does not change regional eligibility.
 
 ## 4. Implement your idea and preview it
 
-Your agent should edit `strategy.mjs`. It receives a market with `yesAsk` and
-`noAsk` and returns `null` to skip or `{ side: "yes" | "no", maxPrice }`.
-Prices are decimal probabilities: `0.40` means 40 cents.
+Your agent should edit `strategy.mjs`. It receives a market with `question`,
+`yesAsk` and `noAsk`, and returns either a skip (`null` or
+`{ skip: true, reasons }`) or a trade (`{ side: "yes" | "no", maxPrice, reasons }`).
+Prices are decimal probabilities: `0.40` means 40 cents. `maxPrice` is the highest
+price the order may pay, and that price itself is allowed. `reasons` is optional:
+a list of short text lines that the dry run prints as `TRACE` lines, so you can
+see why your rule did or did not trade. The dry run also prints the market and
+its asks as `TRACE` lines before your rule's own.
 
 To try the illustrative rule, set `EXAMPLE_SIDE` and `EXAMPLE_MAX_PRICE`. Without
 both, it skips or rejects configuration. This rule only demonstrates a price

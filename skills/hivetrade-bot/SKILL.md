@@ -56,8 +56,12 @@ refuses to overwrite one. Tell the user to keep a private backup of `.env`.
 ## 3. Implement the strategy
 
 Run `list_strategies` (or read `strategy-playbook.md`). Put the user's rule in
-`strategy.mjs`: return `null` to skip or `{ side: "yes" | "no", maxPrice }`. Keep
-execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`) and
+`strategy.mjs`: return `null` or `{ skip: true, reasons }` to skip, or
+`{ side: "yes" | "no", maxPrice, reasons }` to trade. `maxPrice` is inclusive: for
+a rule that says "below 20 cents", implement exactly what the user said and tell
+them how the limit reads. `reasons` is a list of short text lines explaining the
+decision in the user's terms; the dry run prints them as `TRACE` lines (this is
+the "decision trace"). Keep execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`) and
 stake settings in `.env` by editing only those lines, without printing the file.
 
 **Check:** replace `test/example-strategy.test.mjs` (the example rule's tests)
@@ -71,8 +75,9 @@ and `npm test` pass.
 key; nothing is submitted. A dry run needs no Hive ID, so it works before
 registration (step 5).
 
-**Check:** the output shows `DRY RUN` with the market, side, price cap and maximum
-stake, or `SKIP`. Explain what it means and what a dry run does not prove.
+**Check:** the output shows `TRACE` lines (the market, its asks, then the rule's
+reasons) followed by `DRY RUN` with the market, side, price cap and maximum
+stake, or `SKIP: your rule did not select a trade.` Explain what it means and what a dry run does not prove.
 
 ## 5. Registration link
 

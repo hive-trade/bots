@@ -211,7 +211,8 @@ export async function botStatus({ dir, fetch = globalThis.fetch }, args = {}) {
 
 export function listStrategies() {
   return [
-    'Your strategy lives in strategy.mjs. It receives a market with yesAsk and noAsk (0 to 1) and returns null to skip, or { side: "yes" | "no", maxPrice }.',
+    'Your strategy lives in strategy.mjs. It receives a market with question, yesAsk and noAsk (0 to 1) and returns null or { skip: true, reasons } to skip, or { side: "yes" | "no", maxPrice, reasons } to trade. maxPrice is inclusive. reasons (optional) is a list of short text lines the dry run prints as TRACE lines.',
+    'The example rule\'s tests are in test/example-strategy.test.mjs: replace that file with tests for the new rule. The other test files test the kit and never load strategy.mjs.',
     'The included rule is an educational price limit (EXAMPLE_SIDE + EXAMPLE_MAX_PRICE). It has no predictive edge.',
     'Read strategy-playbook.md for generic ideas (price limit, your own probability estimate versus the ask, observation-only) and what to decide first: exact market, resolution source, data freshness, price limit, budget, failure behavior.',
     'Entry points: bot.mjs (shared runner), examples/bot-starter/bot.mjs (Polymarket), examples/kalshi-bot-starter/ (Kalshi; only KXBTC15M, KXETH15M and KXSOL15M tickers are accepted today).',

@@ -54,6 +54,25 @@ test('both CLI dry runs use only public GET requests and need no private key', t
     assert.equal(skip.status, 0, skip.stderr); assert.match(skip.stdout, /^SKIP: /m); assert.doesNotMatch(skip.stdout, /DRY RUN/);
   }
 });
+test('the dry run prints a decision trace: market inputs, then the rule\'s own reasons', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hivetrade-trace-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const trade = runBot(dir, { VENUE: 'polymarket' });
+  assert.equal(trade.status, 0, trade.stderr);
+  const lines = trade.stdout.trim().split('\n');
+  assert.ok(lines.includes('TRACE market 0x' + 'ab'.repeat(32) + ': Example market?'), trade.stdout);
+  assert.ok(lines.includes('TRACE asks: YES $0.40, NO $0.40'), trade.stdout);
+  assert.ok(lines.includes('TRACE fixture: YES costs $0.4'));
+  assert.ok(lines.includes('TRACE second line stays on one line'), 'a reason never spans lines');
+  assert.match(lines.at(-1), /"mode":"DRY RUN"/);
+  const skip = runBot(dir, { VENUE: 'kalshi', FIXTURE_DECISION: 'skip' });
+  assert.match(skip.stdout, /^TRACE fixture: told to skip\nSKIP: your rule did not select a trade\.$/m);
+  assert.doesNotMatch(skip.stdout, /example rule/);
+  const plainNull = runBot(dir, { VENUE: 'kalshi', FIXTURE_DECISION: 'null' });
+  assert.equal(plainNull.status, 0, plainNull.stderr); assert.match(plainNull.stdout, /^SKIP: your rule did not select a trade\.$/m);
+  const bad = runBot(dir, { VENUE: 'kalshi', FIXTURE_DECISION: 'bad-reasons' });
+  assert.notEqual(bad.status, 0); assert.doesNotMatch(bad.stdout, /DRY RUN/);
+});
 test('a dry run works before the Hive exists; live trading without a Hive ID stops', t => {
   const dir = mkdtempSync(join(tmpdir(), 'hivetrade-no-hive-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
