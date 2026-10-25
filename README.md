@@ -16,11 +16,16 @@ Codex, Cursor). Step-by-step for beginners: https://docs.hivetrade.com/run-a-bot
 Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
 I'm new to this, so explain each step in plain words.
 1. Clone the repository into a new folder, then read README.md and AGENTS.md.
-2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my strategy
-   idea in plain words, the most it may spend per Call, and whether it should
-   run on this computer or on a server.
-3. Create the bot's signing key. Never show me the private key or put it in chat.
-4. Turn my idea into the bot's rule, run the tests, and show me a dry run.
+2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my own trading
+   rule in my own words, the exact market it trades (a link is fine), the most
+   it may spend per Call, and whether it should run on this computer or on a
+   server.
+3. Tell me the command that creates the bot's signing key. I will run it myself
+   and give you only the public address it prints. Never run it yourself, never
+   open .env, and never ask me for the private key.
+4. Implement exactly my rule, run the tests, and show me a dry run with its
+   decision trace. Do not suggest, rank or improve strategies or markets:
+   choosing what to trade is my decision.
 5. Give me a pre-filled "Create a bot Hive" link. I will check the signing
    address and press Create myself.
 6. Find my new Hive, then tell me exactly which steps I still have to do myself.
@@ -284,7 +289,7 @@ guards to make it run.
 
 ## Documentation and support
 
-- [Public setup docs](https://hivetrade-docs.vercel.app/run-a-bot/custom)
+- [Public setup docs](https://docs.hivetrade.com/run-a-bot/custom)
 - [HiveTrade docs: set up with your AI agent](https://docs.hivetrade.com/run-a-bot/agent)
 - [Set up with an AI agent](docs/agent-setup.md)
 - [Wire contract](docs/protocol.md)
