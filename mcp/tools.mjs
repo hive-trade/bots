@@ -157,7 +157,7 @@ export function prepareRegistration({ dir, deps }, args = {}) {
       'Open the link in the browser where you are signed in to HiveTrade (sign in first if asked; the form stays filled).',
       `Check that the signing address on the form is exactly ${account.address}. If it differs, do not create the Hive.`,
       'Review the name, description, category, venue and per-call cap. Add a description if it is empty.',
-      'Tick the Captain agreement yourself, then press Create.',
+      'Press Create bot Hive yourself. A bot Hive has no agreement checkbox.',
       'Tell your agent when it is done; it will look up the new Hive with check_registration.',
     ],
     note: 'Nothing was submitted. Only the person can create the Hive.' };
@@ -196,7 +196,7 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
   }
   if (response.status === 404 && body?.code === 'BOT_NOT_REGISTERED') {
     return { registered: false, environment, signingAddress: account.address,
-      message: 'Not created yet. Ask the person to open the link, check the signing address, tick the agreement and press Create. If they already did, the Hive may have been created with a different signing address or on the other environment.' };
+      message: 'Not created yet. Ask the person to open the link, check the signing address and press Create. If they already did, the Hive may have been created with a different signing address or on the other environment.' };
   }
   if (response.status === 404) {
     return { registered: false, environment, lookupUnavailable: true,
@@ -329,7 +329,7 @@ export const TOOLS = [
     run: ctx => setupStatus(ctx) },
   { name: 'create_signing_key', description: 'Create the bot\'s signing identity in .env (mode 0600) and return only its public address. Refuses if .env already exists.', inputSchema: object(),
     run: ctx => createSigningKey(ctx) },
-  { name: 'prepare_registration', description: 'Build a pre-filled "Create a bot Hive" link for this bot\'s signing address. The person opens it, checks the address, ticks the agreement and presses Create. Submits nothing.',
+  { name: 'prepare_registration', description: 'Build a pre-filled "Create a bot Hive" link for this bot\'s signing address. The person opens it, checks the address and presses Create. Submits nothing.',
     inputSchema: object({ name: { type: 'string', description: '3 to 40 characters' }, bio: { type: 'string', description: 'Up to 500 characters' },
       category: { type: 'string', enum: CATEGORIES }, venue: { type: 'string', enum: ['polymarket', 'kalshi'] },
       maxStakeUsd: { type: 'number', minimum: 1, maximum: 100, description: 'Per-call cap in USD' },

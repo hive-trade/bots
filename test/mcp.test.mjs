@@ -82,6 +82,7 @@ test('prepare_registration builds the pre-filled link for the local signer and v
   assert.deepEqual(Object.fromEntries(url.searchParams), { name: 'BTC & ETH bot', bio: 'Buys 15-minute moves + more', category: 'Crypto', venue: 'kalshi', signer: address, maxStake: '5', from: 'agent' });
   assert.ok(!out.url.includes('+'), 'spaces are encoded as %20');
   assert.ok(out.instructions.some(line => line.includes(address)));
+  assert.ok(!out.instructions.some(line => /tick/i.test(line)), 'a bot Hive has no agreement checkbox to tick');
   assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'polymarket', environment: 'dev' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com');
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('BOT_API_URL=https://api.hivetrade.com', 'BOT_API_URL=https://api-dev.hivetrade.com'));
   assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'kalshi' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com', 'follows BOT_API_URL');

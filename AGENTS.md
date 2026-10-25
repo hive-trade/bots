@@ -16,7 +16,7 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
    Show only the public address. Never upload or commit credentials/state.
 2. Registration: build the pre-filled `/bots/new` link for the local signer
    (MCP `prepare_registration`). The user opens it, checks the signing address,
-   ticks the agreement and presses Create; you never submit it. Then read the Hive
+   and presses Create; you never submit it. Bot Hives have no agreement checkbox. Then read the Hive
    ID with the signed lookup (MCP `check_registration`); if the API lacks it, ask
    for the ID the page showed (`set_hive_id`). The manual form is the fallback.
    The user performs account consent, the Kalshi key connection and funding.

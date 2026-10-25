@@ -30,7 +30,6 @@ same server, see [Other MCP clients](#other-mcp-clients).
 | Prepare the pre-filled "Create a bot Hive" link | Agent |
 | Read the Hive ID back and save it to `.env` | Agent |
 | Check the signing address on the form and press **Create bot Hive** | You |
-| Tick the Captain agreement | You |
 | Kalshi: connect your Kalshi API key in HiveTrade Settings and give the execution consent | You |
 | Polymarket: send funds to the bot's deposit wallet (HiveTrade creates it with the Hive) | You |
 | Turn on live trading (`BOT_LIVE_TRADING_ENABLED=true`) | You |
@@ -56,8 +55,8 @@ same server, see [Other MCP clients](#other-mcp-clients).
    Nothing is submitted.
 7. **You create the Hive.** Open the link in the browser where you are signed in
    to HiveTrade. Check that the signing address on the form is exactly the one
-   your agent showed you. If it differs, stop. Review the rest, tick the Captain
-   agreement and press **Create bot Hive**.
+   your agent showed you. If it differs, stop. Review the rest and press
+   **Create bot Hive**.
 8. **Hive ID.** Tell the agent you are done. It calls `check_registration`, which
    asks HiveTrade with a request signed by the bot's key and saves `BOT_HIVE_ID`.
    If the lookup is not available, it asks you for the Hive ID the page showed and

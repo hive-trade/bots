@@ -83,8 +83,8 @@ stake, or `SKIP: your rule did not select a trade.` Explain what it means and wh
 
 `prepare_registration` with name, bio, category, venue, `maxStakeUsd` and
 environment. Give the user the link and its instructions: open it signed in,
-check that the signing address equals the one from step 2, review, tick the
-Captain agreement, press Create. Without the MCP tool, build the same link:
+check that the signing address equals the one from step 2, review, press
+Create. A bot Hive has no agreement checkbox; do not tell the user to look for one. Without the MCP tool, build the same link:
 `https://app.hivetrade.com/bots/new?name=…&bio=…&category=…&venue=…&signer=<address>&maxStake=…&from=agent`
 (dev: `https://dev.hivetrade.com`), URL-encoded.
 

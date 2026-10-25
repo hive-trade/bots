@@ -100,8 +100,8 @@ files, or credentials. The example needs no access to HiveTrade's private reposi
 
 Only you can create the Hive, in your own signed-in browser. Your agent builds a
 pre-filled link (MCP tool `prepare_registration`) and never submits it. Open it,
-check that the **signing address** is exactly the one your agent showed you, tick
-the Captain agreement and press **Create bot Hive**. The agent then reads the Hive
+check that the **signing address** is exactly the one your agent showed you, and
+press **Create bot Hive**. The agent then reads the Hive
 ID back (`check_registration`) or, if that lookup is not available yet, asks you
 for the ID the page showed (`set_hive_id`). See [agent setup](docs/agent-setup.md).
 
