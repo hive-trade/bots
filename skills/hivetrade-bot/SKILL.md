@@ -38,7 +38,8 @@ on when it passes. If a check fails, explain what is missing in plain words.
 Ask, reusing anything already said:
 1. Venue: **Kalshi** (shorter: HiveTrade executes with the user's connected Kalshi
    key; only `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers today) or **Polymarket**
-   (HiveTrade creates the bot's deposit wallet with the Hive; the user funds it).
+   (Hive creation and dry runs work; live trading for new bots is not self-serve
+   yet, they will trade from the user's own HiveTrade account).
 2. Bot name (3 to 40 characters), a one-line description, and a category.
 3. The user's own rule in their words, and the exact market (a link is fine).
    For Polymarket, run `find_market` (or `npm run find-market -- <link>`): an
@@ -128,19 +129,16 @@ signed `POST /api/bot/budget` (see [protocol](../../docs/protocol.md)).
 - **Kalshi:** the user connects their Kalshi API key in HiveTrade Settings and
   completes the execution consent. Nothing Kalshi-related goes in `.env` except
   the ticker and contracts.
-- **Polymarket:** HiveTrade created the bot's deposit wallet when the user
-  pressed Create. `check_registration` saves its address as
-  `POLYMARKET_DEPOSIT_WALLET`; `get_bot_status` and `npm run wallet` print it.
-  If the kit reports no address, the user copies it from the Hive page and you
-  set it in `.env`. The user sends funds to that address. Never tell the user to
-  sign in to Polymarket as the bot or to import the bot's key into a wallet app,
-  and never send funds to the signing address. "Register the wallet"
-  (`npm run bind-wallet`, same as `npm run register-wallet`) is only for bots
-  created before HiveTrade made the wallet.
+- **Polymarket:** say plainly that live trading for a new Polymarket bot is not
+  self-serve yet: new Polymarket bots will trade from the user's own HiveTrade
+  account, which HiveTrade is still building. There is nothing to fund for the
+  bot. Never tell the user to send money to a bot address, sign in to Polymarket
+  as the bot, or import the bot's key into a wallet app. "Register the wallet"
+  (`npm run bind-wallet`) is only for older bots that already have their own
+  deposit wallet.
 
 **Check:** Kalshi - the user confirms the key and consent are done. Polymarket -
-`get_setup_status` shows `polymarketDepositWallet` and the user says they sent
-funds to it.
+the user understands that live trading waits for HiveTrade.
 Run `dry_run` again: it should reach `DRY RUN` or `SKIP`.
 
 ## 8. Hosting

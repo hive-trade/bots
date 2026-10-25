@@ -54,9 +54,10 @@ halt for reconciliation. An order ID alone is not evidence of a fill. API-owned
 follower orders can remain even when the Captain fails: never report a fabricated
 no-fill or assume everything was canceled.
 
-HiveTrade creates a new Polymarket bot Hive's deposit wallet at registration.
-The kit reads its address from the signed `whoami` / `budget` responses when
-present (`depositWallet`, `depositWalletAddress` or `polymarketDepositWallet`).
+The Captain leg above (own deposit wallet, local order, fill report) is how
+older Polymarket bots trade. New Polymarket bots will instead trade from the Hive
+owner's own HiveTrade account, with the bot only signing the Call; that API is not
+available yet, and this section will change when it is.
 
 Register the wallet (`npm run bind-wallet`, same as `npm run register-wallet`),
 for bots created before that, whose operator set up the wallet:

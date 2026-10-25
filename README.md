@@ -61,9 +61,9 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 3. **Agent:** prepares a pre-filled "Create a bot Hive" link.
 4. **You:** open it, check the signing address, and press **Create bot Hive**.
 5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
-6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: send
-   funds to the bot's deposit wallet. HiveTrade creates that wallet when you press
-   Create and shows its address; `npm run wallet` prints it too.
+6. **You:** Kalshi: connect your Kalshi API key and consent. Polymarket: live
+   trading for new bots is not self-serve yet; they will trade from your own
+   HiveTrade account once HiveTrade finishes that part.
 7. **You:** turn on live trading, only when you decide to.
 
 Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/agent-setup.md).
@@ -72,8 +72,9 @@ Details, the tool reference and troubleshooting: [Set up with an AI agent](docs/
 
 - A small **user-selected side + maximum price** example, disabled until configured.
   It is a programming example, not a forecast or a promise of profit.
-- Polymarket: a deposit wallet for the bot, created by HiveTrade with the Hive;
-  signed intent, local order, actual fill report.
+- Polymarket: dry runs and Hive creation today. Live trading for new bots is not
+  self-serve yet (they will trade from your own HiveTrade account). Older bots
+  keep their own deposit wallet, local order and fill report.
 - Kalshi: signed v2 intent; HiveTrade executes using the operator's connected account.
   No Kalshi private key belongs in this runner.
 - Local key creation, spending checks, persistent duplicate prevention,
@@ -189,26 +190,22 @@ market slug. Paste the link into `npm run find-market -- <link>` (MCP tool
 status and Polymarket's end date; if it is an event, it lists the event's open
 markets and you pick the one your rule trades.
 
-1. Set `VENUE=polymarket`. When you press **Create bot Hive**, HiveTrade creates
-   the bot's own deposit wallet and shows its address. You do not need to visit
-   Polymarket or import the bot's key into a wallet app; never do that.
-2. Your agent saves the address as `POLYMARKET_DEPOSIT_WALLET` in `.env`
-   (`check_registration` does this). `npm run wallet` prints it. If the kit
-   cannot read it yet, copy it from the Hive page. It is the deposit wallet, not
-   the signing address.
-3. Send funds to that deposit wallet address, as the Hive page explains. Never
-   send funds to the signing address.
-4. Set an exact binary Yes/No `MARKET_SLUG` and `STAKE_USD`. A polymarket.com
-   link is not a slug: `npm run find-market -- <link>` turns it into one (see
-   below). The runner derives CLOB
-   authentication locally and retrieves the public builder configuration from HiveTrade.
+1. Set `VENUE=polymarket` and an exact binary Yes/No `MARKET_SLUG` (a
+   polymarket.com link is not a slug: `npm run find-market -- <link>` turns it
+   into one). You can create the Hive and run dry runs today.
+2. **Live trading for a new Polymarket bot is not self-serve yet.** New
+   Polymarket bots will trade from your own HiveTrade account: the bot signs the
+   Call and HiveTrade places the order in your account. HiveTrade is still
+   building that part. Until it is ready, there is nothing to fund for the bot.
+   Never send money to the bot's signing address, never sign in to Polymarket as
+   the bot, and never import the bot's key into a wallet app.
 
-**Register the wallet** (older bots only). Bots created before HiveTrade made the
-wallet for you register a wallet they set up themselves with `npm run bind-wallet`
-(`npm run register-wallet` is the same command). It sends the signed
-register-wallet request in [the protocol](docs/protocol.md); it is a setup write,
-not a trade. New bots do not need it. The starter does not redeem winnings. Follow the venue's eligibility
-rules; a server does not change regional eligibility.
+**Older bots only.** A bot created before this change trades from a deposit
+wallet its operator set up and registered (**register the wallet**:
+`npm run bind-wallet`, same as `npm run register-wallet`; see
+[the protocol](docs/protocol.md)). That keeps working; new bots do not use it.
+The starter does not redeem winnings. Follow the venue's eligibility rules; a
+server does not change regional eligibility.
 
 ## 4. Implement your idea and preview it
 

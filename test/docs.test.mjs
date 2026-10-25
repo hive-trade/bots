@@ -16,7 +16,7 @@ test('no doc tells anyone to tick an agreement, import the key into a wallet, or
   for (const file of ['README.md', 'AGENTS.md', 'docs/agent-setup.md', 'skills/hivetrade-bot/SKILL.md', 'skills/hivetrade-deploy/SKILL.md', 'docs/railway.md', 'mcp/tools.mjs']) {
     const text = read(file);
     assert.doesNotMatch(text, /tick (the )?(captain )?agreement/i, file);
-    assert.doesNotMatch(text, /wallets-auth|supported wallet setup|deploy and fund/i, file);
+    assert.doesNotMatch(text, /wallets-auth|supported wallet setup|deploy and fund|send funds to th(e|at) (bot's )?deposit wallet|npm run wallet\b/i, file);
     assert.doesNotMatch(text, /hivetrade-docs\.vercel\.app/, file);
   }
 });

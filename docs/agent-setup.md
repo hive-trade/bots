@@ -31,7 +31,7 @@ same server, see [Other MCP clients](#other-mcp-clients).
 | Read the Hive ID back and save it to `.env` | Agent |
 | Check the signing address on the form and press **Create bot Hive** | You |
 | Kalshi: connect your Kalshi API key in HiveTrade Settings and give the execution consent | You |
-| Polymarket: send funds to the bot's deposit wallet (HiveTrade creates it with the Hive) | You |
+| Polymarket: nothing yet. Live trading for new bots is not self-serve; they will trade from your own HiveTrade account | |
 | Turn on live trading (`BOT_LIVE_TRADING_ENABLED=true`) | You |
 | On a server: put the signing key in the host's secret settings | You |
 
@@ -67,10 +67,10 @@ same server, see [Other MCP clients](#other-mcp-clients).
    requests signed by the bot's key, so it also works for a Private Hive (the
    form's default), and shows the name, venue and per-call cap.
 10. **Venue setup (you).** Kalshi: connect your Kalshi API key in HiveTrade
-    Settings and give the execution consent. Polymarket: HiveTrade created the
-    bot's deposit wallet with the Hive; the agent saves its address as
-    `POLYMARKET_DEPOSIT_WALLET` (`check_registration`, or from the Hive page) and
-    you send funds to it. No Polymarket sign-in, no wallet app, no key import.
+    Settings and give the execution consent. Polymarket: live trading for a
+    new bot is not self-serve yet; new Polymarket bots will trade from your own
+    HiveTrade account once HiveTrade finishes that part. Nothing to fund, no
+    Polymarket sign-in, no wallet app, no key import.
     The agent runs `dry_run` again.
 11. **Hosting (optional).** The agent calls `get_deploy_guide` and follows the
     `hivetrade-deploy` skill. Today this is practice only: a scheduled dry run
@@ -84,11 +84,11 @@ Code project folder, else the current directory.
 
 | Tool | What it does | Inputs | What it never does |
 |---|---|---|---|
-| `get_setup_status` | Reports which steps are done: kit, dependencies, `.env` and whether it is private, public signing address, venue, environment, Hive ID, Polymarket deposit wallet, market, live trading flag, and the next step. | none | Return a key or any other secret. |
+| `get_setup_status` | Reports which steps are done: kit, dependencies, `.env` and whether it is private, public signing address, venue, environment, Hive ID, an older bot's Polymarket deposit wallet, market, live trading flag, and the next step. | none | Return a key or any other secret. |
 | `get_signing_key_command` | Returns the command the person runs in their own terminal (`npm run setup`) and what to tell them. If the key exists, returns only its public address. | none | Create a key, run a command, or show the key. |
 | `update_settings` | Changes public settings in `.env`: venue, market, stake, example and `STRATEGY_*` values. | `settings` (object, required) | Write the key, the live-trading switch, the Hive ID or the API. |
 | `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `maxStakeUsd` (1 to 100), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
-| `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`, and for Polymarket the deposit wallet address HiveTrade returns (`POLYMARKET_DEPOSIT_WALLET`, never overwriting a different saved one). | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
+| `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`. | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
 | `set_hive_id` | Writes `BOT_HIVE_ID` to `.env`. For when the automatic lookup is unavailable. | `hiveId` (whole number, 1 or more, required) | Write any other setting. |
 | `get_bot_status` | Confirms the Hive with requests signed by the bot's key (`/api/bot/budget`, `/api/bot/whoami`), so it works for a Private Hive: name, handle, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public. | `environment` (optional) | Return the key, or change `.env`. |
 | `find_market` | Turns a polymarket.com link or slug into the exact `MARKET_SLUG`, with status and end date. An event link returns its markets for the person to pick. Public read-only Gamma lookup. | `link` (required) | Suggest, rank or choose a market. |

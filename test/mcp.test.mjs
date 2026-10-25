@@ -168,29 +168,20 @@ test('check_registration signs whoami and writes BOT_HIVE_ID, keeping other line
   assert.equal(after, expected);
 });
 
-test('Polymarket: the deposit wallet HiveTrade created is saved and printed, never guessed', async t => {
-  // Owner 2026-10-25: HiveTrade creates the bot's deposit wallet at Create.
-  // The address may arrive in the signed reads; until it does, point to the Hive page.
-  const wallet = `0x${'cd'.repeat(20)}`;
+test('Polymarket: no tool sends the person to fund a bot address; it says live trading is not self-serve yet', async t => {
+  // Owner 2026-10-25: new bots will trade from the owner's own HiveTrade account (API not built yet).
   const dir = kit(t);
   makeIdentity(dir);
-  const saved = json(await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(200, { hiveId: 77, venue: 'polymarket', depositWallet: wallet }) }));
-  assert.equal(saved.depositWallet, wallet); assert.ok(saved.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET'));
-  assert.match(readFileSync(join(dir, '.env'), 'utf8'), new RegExp(`^POLYMARKET_DEPOSIT_WALLET=${wallet}$`, 'm'));
-  const differs = json(await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(200, { hiveId: 77, venue: 'polymarket', depositWalletAddress: `0x${'ef'.repeat(20)}` }) }));
-  assert.match(differs.depositWalletNote, /was not changed/);
-  assert.match(readFileSync(join(dir, '.env'), 'utf8'), new RegExp(`^POLYMARKET_DEPOSIT_WALLET=${wallet}$`, 'm'), 'an existing wallet is never overwritten');
-  const status = json(await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 77, maxStakeUsd: 1 }], whoami: [200, { hiveId: 77, venue: 'polymarket' }] }) }));
-  assert.equal(status.depositWallet, wallet);
-  const fresh = kit(t);
-  makeIdentity(fresh);
-  const none = json(await callTool('check_registration', {}, { dir: fresh, deps, fetch: fetchReturning(200, { hiveId: 78, venue: 'polymarket', depositWallet: 'not-an-address' }) }));
-  assert.equal(none.depositWallet, null); assert.match(none.depositWalletNote, /Check the Hive page/);
-  assert.ok(!none.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET'));
-  const noneStatus = json(await callTool('get_bot_status', {}, { dir: fresh, deps, fetch: statusFetch({ budget: [200, { hiveId: 78, maxStakeUsd: 1 }], whoami: [200, { hiveId: 78, venue: 'polymarket' }] }) }));
-  assert.equal(noneStatus.depositWallet, null); assert.match(noneStatus.depositWalletNote, /Check the Hive page/);
-  const setup = json(await callTool('get_setup_status', {}, { dir: fresh, deps }));
-  assert.doesNotMatch(setup.nextStep, /deploy|bind-wallet|polymarket\.com/i);
+  const reg = await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(200, { hiveId: 77, venue: 'polymarket', depositWallet: `0x${'cd'.repeat(20)}` }) });
+  const out = json(reg);
+  assert.ok(!out.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET')); assert.match(out.polymarketLiveTrading, /not self-serve yet/);
+  const status = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 77, maxStakeUsd: 1 }], whoami: [200, { hiveId: 77, venue: 'polymarket' }] }) });
+  assert.match(json(status).polymarketLiveTrading, /own HiveTrade account/);
+  writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('MARKET_SLUG=', 'MARKET_SLUG=my-market'));
+  mkdirSync(join(dir, 'node_modules', 'viem'), { recursive: true });
+  const setup = json(await callTool('get_setup_status', {}, { dir, deps }));
+  for (const line of [JSON.stringify(out), setup.nextStep, text(status)]) assert.doesNotMatch(line, /send funds|fund the bot|deposit wallet address|bind-wallet/i);
+  assert.match(setup.nextStep, /not self-serve yet/);
 });
 test('check_registration explains not-created, missing route and clock skew without writing', async t => {
   const dir = kit(t);
