@@ -23,6 +23,18 @@ its other authentication, venue, balance, consent and execution gates on submit.
 
 ## Polymarket
 
+This section describes the legacy **self-managed** mode implemented here.
+A Polymarket Hive executing in the owner's account requires `pm-op-v1`; a
+bot-wallet Hive relaying pre-signed orders requires `pm-v3`. This starter
+implements neither. Operator-mode support is pending in public PR #15; a
+current-main update alone does not add it. The pm-v3 protocol signs a different
+message, with
+`execution: "hivetrade-v1"` and `signedOrder`, omitting the old `intent`,
+`orderType` and `fillResult` fields. Adding an order to this starter's old
+message is insufficient. Do not submit both protocols or fall back to a local
+order after a refusal. The existing non-2xx/explicit-go checks stop safely
+when a Hive rejects this mode.
+
 `POST /api/bot/signal` with `{ signal, signature }`. The signal contains
 `hiveId`, `venue: "polymarket"`, `conditionId`, `side`, `signalStrength`, `stakeUsd`,
 `orderType: "marketable"`, `nonce`, `issuedAt`, and `intent: true`.
@@ -52,6 +64,29 @@ Wallet binding: `POST /api/admin/bot/register-wallet` with
 `hivetrade:bot-register-wallet:<hiveId>:<lowercase-wallet>:<issuedAt>`.
 This route uses the bot signature despite its `/admin` prefix.
 
+## Buy window and retries
+
+Every bot Call has a fixed one-minute buy window. HiveTrade can retry unfilled
+eligible copies about every 15 seconds inside the same price band until the
+window ends. An order with an unknown outcome must be reconciled before another
+attempt for that leg. Its API-owned Kalshi Captain leg can participate. A locally placed
+Polymarket Captain order is not retried by HiveTrade, and a pm-v3 Captain order
+is not re-signed for another round. Bots do not select the six-hour Studio window.
+
+This server behavior does not authorize a second signal submission. The starter
+attempts each market once and stops on uncertain results. Preserve the journal
+and reconcile the venue and Hive before doing anything further.
+
+## One open Call per exchange market
+
+A Hive cannot open a second unresolved Call on the same exchange market before
+the Captain closes or sells the first, regardless of side. Stop buying or an
+expired window does not free that slot. A duplicate may return
+`CALL_ALREADY_OPEN` or a Polymarket `PM_CALL_ALREADY_OPEN` clean skip. Preserve
+the journal; do not submit a local order or a fresh nonce to bypass the refusal.
+There is no manual Add endpoint. Automatic original-window completion remains
+server-owned, and the starter's once-per-market journal is stricter than the API.
+
 ## Kalshi
 
 The signal includes `venue: "kalshi"`, `execution: "hivetrade-v1"`, `intent: true`,
@@ -59,15 +94,27 @@ The signal includes `venue: "kalshi"`, `execution: "hivetrade-v1"`, `intent: tru
 `signalStrength` (always `100`), stake, nonce and timestamp fields. The message prefix is
 `HiveTrade bot signal kalshi-v2`. No Polymarket order fields are included.
 
-The API currently checks stake against:
+The starter calculates its legacy signed amount locally as:
 
 ```
 feeCents = ceil(7 * contracts * priceCents * (100 - priceCents) / 10000)
 stakeUsd = (contracts * priceCents + feeCents) / 100
 ```
 
-This is the API's signed maximum-cost contract, not a universal venue fee schedule.
-Only supported `KXBTC15M`, `KXETH15M`, `KXSOL15M` tickers pass the current API gate.
+The current API verifies the legacy signed bytes but **does not size from that
+stake or contract count**. It sizes from the Hive's Amount per Call, including
+the fee multiplier it resolves for the market, in steps of 0.01 contract and
+within the Hive's Total budget. The locally printed amount and `MAX_STAKE_USD`
+do not cap this API-sized order. Verify the Hive's actual settings before a
+live run.
+
+The API also supports a no-amount Kalshi-v2 shape, omitting both `stake:` and
+`contracts:` lines and their JSON fields; this starter does not emit it. Never
+remove fields from a legacy signal after signing, or omit only one of the pair.
+
+This starter accepts whole contract counts and only `KXBTC15M`, `KXETH15M`,
+`KXSOL15M` tickers. The API accepts [more reviewed series](https://docs.hivetrade.com/run-a-bot/kalshi#markets-the-bot-api-accepts).
+These are integration limits, not market recommendations.
 
 HiveTrade owns execution through the operator's connected credential. The runner
 never holds that credential, places a second order, or posts a fill report. An

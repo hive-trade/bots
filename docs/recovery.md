@@ -2,6 +2,11 @@
 
 ## Before a live attempt
 
+Read the [current API compatibility notice](../README.md#current-api-compatibility--30-october-2026).
+This starter cannot execute an operator-mode Polymarket Hive. For Kalshi,
+verify the Hive's Amount per Call and Total budget in Studio: the API uses
+those settings, not this client's lower local signed stake or printed maximum.
+
 Run `npm run check` and `npm test`. Preview the exact market using dry-run mode.
 Confirm the selected venue, signer registration, Hive ID, account/wallet, maximum
 stake and price limit. Dry runs do not authenticate or place trades.
@@ -39,9 +44,11 @@ The starter deliberately provides no automatic retry/recovery command.
 
 ### Kalshi accepted but fill not confirmed
 
-HiveTrade owns the order and reconciliation. Check its returned Captain outcome
-and the connected Kalshi account. Do not submit a local order or use Polymarket's
-fill endpoint to resolve it.
+HiveTrade owns the order and reconciliation. Its fixed one-minute buy window
+can continue attempting the eligible unfilled Captain amount and Member copies
+inside the same price band. An initial unconfirmed result does not authorize a
+new signal. Check the Hive and connected Kalshi account, including any later
+fills. Do not submit a local order or use Polymarket's fill endpoint to resolve it.
 
 ### Clearing a resolved incident
 
@@ -56,3 +63,10 @@ the same journal volume after deployments. Multiple independent volumes are not 
 Automated tests use local fixtures and never place trades. A successful build or
 dry run does not validate a user's funding, eligibility, permissions or live fills.
 Live verification is a separate user decision involving real funds.
+
+## Polymarket execution mode changed
+
+`PM_CAPTAIN_EXECUTED_BY_HIVETRADE` means this self-managed starter cannot run
+that Hive's current protocol. Stop and use a client compatible with the Hive's
+mode. Preserve existing journal entries and reconcile any earlier uncertain
+attempts. Do not change mode or submit a local order to bypass the refusal.
