@@ -1,5 +1,10 @@
 # Kalshi example
 
+The API sizes Captain orders from the Hive's Amount per Call and Total budget.
+This example's legacy signed stake, printed amount and `MAX_STAKE_USD` do not
+cap that API-sized order. Check the Hive settings in Studio before any live run.
+See the [compatibility notice](../../README.md#current-api-compatibility--30-october-2026).
+
 Use the [root setup guide](../../README.md) and clone the entire repository.
 This entry point uses the shared runner with `VENUE=kalshi`; it contains no
 HiveTrade production strategy or automatic market selection.

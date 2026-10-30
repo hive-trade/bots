@@ -1,6 +1,9 @@
 # Agent setup instructions
 
-Read README.md, docs/protocol.md and docs/recovery.md. This is a public example
+Read README.md, docs/protocol.md and docs/recovery.md. Start with the README's
+current compatibility notice: this client cannot execute an operator-mode
+Polymarket Hive, and its local Kalshi amount is not the API's execution cap.
+Do not treat a pending pull request as installed support. This is a public example
 repository. Build the user's strategy; do not fetch, reproduce, or imply access
 to HiveTrade's private production strategies, parameters or internal telemetry.
 

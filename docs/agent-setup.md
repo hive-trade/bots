@@ -126,12 +126,20 @@ Responses:
 | 404 without that code | | This API does not have the lookup yet. Ask the person for the Hive ID. |
 | 401 | | The signature or time was rejected. Check the computer clock. |
 
-Lookup availability depends on the API deployment. If `check_registration`
-reports the endpoint as unavailable, use `set_hive_id` with the ID the person
-received after creating the Hive. A `BOT_NOT_REGISTERED` response means the
-lookup exists but found no Hive for this signer.
+The lookup is live on production and dev. `BOT_NOT_REGISTERED` means the lookup
+exists but found no Hive for this signer. If an API ever answers without it,
+`check_registration` reports it as unavailable and the agent uses `set_hive_id`.
 
 The other signed endpoints are in the [wire contract](protocol.md).
+
+## Execution compatibility
+
+Read the [current compatibility notice](../README.md#current-api-compatibility--30-october-2026)
+before planning a live setup. The MCP can prepare a registration link and perform
+a dry run even when this starter cannot execute that Hive's mode. Registration
+success is not protocol compatibility. A new operator-mode Polymarket Hive needs
+a compatible client; PR #15 is pending. For Kalshi, verify the Hive's Amount per
+Call and Total budget separately; the local preview amount is not the API cap.
 
 ## Security model
 
@@ -166,8 +174,9 @@ exact signing address each time, by pressing Create yourself.
 - **The server shows as failed in `/mcp` on the first session.** The plugin
   installs its dependencies when the session starts, which can take about a
   minute. Reconnect `hivetrade-bot` in `/mcp` once it is done.
-- **"Lookup unavailable".** This API deployment did not provide the signed lookup.
-  Give the agent the Hive ID the page showed after Create; it calls `set_hive_id`.
+- **"Lookup unavailable".** The API answered without the signed lookup (check
+  `BOT_API_URL` points at HiveTrade). Give the agent the Hive ID the page showed after
+  Create; it calls `set_hive_id`.
 - **`BOT_NOT_REGISTERED` after you pressed Create.** The signing address on the
   form was changed, or the Hive was created on the other environment. Compare the
   address with `get_setup_status` and check which site you used.

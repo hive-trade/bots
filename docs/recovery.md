@@ -2,6 +2,11 @@
 
 ## Before a live attempt
 
+Read the [current API compatibility notice](../README.md#current-api-compatibility--30-october-2026).
+This starter cannot execute an operator-mode Polymarket Hive. For Kalshi,
+verify the Hive's Amount per Call and Total budget in Studio: the API uses
+those settings, not this client's lower local signed stake or printed maximum.
+
 Run `npm run check` and `npm test`. Preview the exact market using dry-run mode.
 Confirm the selected venue, signer registration, Hive ID, account/wallet, maximum
 stake and price limit. Dry runs do not authenticate or place trades.

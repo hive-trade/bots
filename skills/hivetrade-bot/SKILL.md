@@ -28,6 +28,12 @@ person's own Polymarket or Kalshi account.
 Work through the steps in order. After each one, run its **Check** and only move
 on when it passes. If a check fails, explain what is missing in plain words.
 
+Before setup, read the README's current API compatibility notice. This starter
+cannot execute an operator-mode Polymarket Hive; the feature PR is pending.
+On Kalshi, the API sizes from the Hive's Amount per Call, not the local signed
+stake or MAX_STAKE_USD. Verify the Hive's settings with the person before a live
+handoff. Registration and a dry run do not establish execution compatibility.
+
 ## 1. Ask first
 
 Ask, reusing anything already said:
