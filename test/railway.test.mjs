@@ -17,7 +17,11 @@ test('offline plan makes no CLI calls; rejects secrets and ambiguous destination
   const planned = run('plan', example, undefined, () => assert.fail('plan makes no CLI calls'));
   assert.deepEqual(planned.target, { project: 'not set yet', environment: 'not set yet', service: 'not set yet' });
   assert.match(planned.beforeDeploy, /deploy refuses/);
-  assert.equal(example.variables.STAKE_USD, example.variables.MAX_STAKE_USD, 'the example spells out the stake');
+  // A Call carries no amount: the stake is the Amount per Call set on the Hive, never a server variable.
+  for (const key of ['STAKE_USD', 'MAX_STAKE_USD', 'KALSHI_CONTRACTS']) {
+    assert.equal(example.variables[key], undefined, key);
+    assert.throws(() => validate({ ...input, variables: { ...input.variables, [key]: '1' } }), undefined, key);
+  }
   assert.throws(() => run('deploy', example, undefined, () => assert.fail('no CLI call')), /UUID/);
   assert.throws(() => run('verify', example, deploymentId, () => assert.fail('no CLI call')), /UUID/);
   assert.throws(() => validate({ ...input, intervalMinutes: 1 }));

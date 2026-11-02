@@ -93,7 +93,7 @@ test('get_setup_status reports progress and never includes the key', async t => 
   makeIdentity(dir);
   const key = keyOf(dir);
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8')
-    .replace('VENUE=kalshi', 'VENUE=polymarket').replace('POLYMARKET_DEPOSIT_WALLET=', `POLYMARKET_DEPOSIT_WALLET=0x${'ab'.repeat(20)}`));
+    .replace('VENUE=kalshi', 'VENUE=polymarket').replace('POLYMARKET_DEPOSIT_WALLET=', `POLYMARKET_DEPOSIT_WALLET=0x${'ab'.repeat(20)}\nPOLYMARKET_LEGACY_SELF_MANAGED=true`));
   const result = await callTool('get_setup_status', {}, { dir, deps });
   assert.ok(!text(result).includes(key)); assert.doesNotMatch(text(result), SECRET);
   const status = json(result);
@@ -109,7 +109,7 @@ test('prepare_registration builds the pre-filled link for the local signer and v
   assert.ok((await callTool('prepare_registration', { name: 'Bot', venue: 'kalshi' }, { dir, deps })).isError); // no .env yet
   makeIdentity(dir);
   const address = privateKeyToAccount(keyOf(dir)).address;
-  const out = json(await callTool('prepare_registration', { name: ' BTC & ETH bot ', bio: 'Buys 15-minute moves + more', category: 'crypto', venue: 'kalshi', maxStakeUsd: 5 }, { dir, deps }));
+  const out = json(await callTool('prepare_registration', { name: ' BTC & ETH bot ', bio: 'Buys 15-minute moves + more', category: 'crypto', venue: 'kalshi', amountPerCallUsd: 5 }, { dir, deps }));
   const url = new URL(out.url);
   assert.equal(url.origin, 'https://app.hivetrade.com'); assert.equal(url.pathname, '/bots/new');
   assert.deepEqual(Object.fromEntries(url.searchParams), { name: 'BTC & ETH bot', bio: 'Buys 15-minute moves + more', category: 'Crypto', venue: 'kalshi', signer: address, maxStake: '5', from: 'agent' });
@@ -120,7 +120,7 @@ test('prepare_registration builds the pre-filled link for the local signer and v
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('BOT_API_URL=https://api.hivetrade.com', 'BOT_API_URL=https://api-dev.hivetrade.com'));
   assert.equal(new URL(json(await callTool('prepare_registration', { name: 'Dev bot', venue: 'kalshi' }, { dir, deps })).url).origin, 'https://dev.hivetrade.com', 'follows BOT_API_URL');
   for (const bad of [{ name: 'ab', venue: 'kalshi' }, { name: 'x'.repeat(41), venue: 'kalshi' }, { name: 'Bot', bio: 'x'.repeat(501), venue: 'kalshi' },
-    { name: 'Bot', venue: 'hyperliquid' }, { name: 'Bot', venue: 'kalshi', maxStakeUsd: 0 }, { name: 'Bot', venue: 'kalshi', maxStakeUsd: 101 },
+    { name: 'Bot', venue: 'hyperliquid' }, { name: 'Bot', venue: 'kalshi', amountPerCallUsd: 0 }, { name: 'Bot', venue: 'kalshi', amountPerCallUsd: 101 },
     { name: 'Bot', venue: 'kalshi', category: 'Stocks' }, { name: 'Bot', venue: 'kalshi', environment: 'staging' }]) {
     assert.ok((await callTool('prepare_registration', bad, { dir, deps })).isError, JSON.stringify(bad));
   }
@@ -169,20 +169,20 @@ test('check_registration signs whoami and writes BOT_HIVE_ID, keeping other line
   assert.equal(after, expected);
 });
 
-test('Polymarket: no tool sends the person to fund a bot address; it says live trading is not self-serve yet', async t => {
-  // Owner 2026-10-25: new bots will trade from the owner's own HiveTrade account (API not built yet).
+test('Polymarket: no tool sends the person to fund a bot address; it names the owner\'s budget and allow step in HiveTrade', async t => {
+  // Owner 2026-10-25: new bots trade from the owner's own HiveTrade account (pm-op-v1).
   const dir = kit(t);
   makeIdentity(dir);
   const reg = await callTool('check_registration', {}, { dir, deps, fetch: fetchReturning(200, { hiveId: 77, venue: 'polymarket', depositWallet: `0x${'cd'.repeat(20)}` }) });
   const out = json(reg);
-  assert.ok(!out.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET')); assert.match(out.polymarketLiveTrading, /not self-serve yet/);
+  assert.ok(!out.wroteToEnv.includes('POLYMARKET_DEPOSIT_WALLET')); assert.match(out.polymarketLiveTrading, /Amount per Call \(what each Call stakes\) and Total budget/);
   const status = await callTool('get_bot_status', {}, { dir, deps, fetch: statusFetch({ budget: [200, { hiveId: 77, maxStakeUsd: 1 }], whoami: [200, { hiveId: 77, venue: 'polymarket' }] }) });
   assert.match(json(status).polymarketLiveTrading, /own HiveTrade account/);
   writeFileSync(join(dir, '.env'), readFileSync(join(dir, '.env'), 'utf8').replace('MARKET_SLUG=', 'MARKET_SLUG=my-market'));
   mkdirSync(join(dir, 'node_modules', 'viem'), { recursive: true });
   const setup = json(await callTool('get_setup_status', {}, { dir, deps }));
   for (const line of [JSON.stringify(out), setup.nextStep, text(status)]) assert.doesNotMatch(line, /send funds|fund the bot|deposit wallet address|bind-wallet/i);
-  assert.match(setup.nextStep, /not self-serve yet/);
+  assert.match(setup.nextStep, /allows the bot to trade/);
 });
 test('check_registration explains not-created, missing route and clock skew without writing', async t => {
   const dir = kit(t);
@@ -243,7 +243,7 @@ test('get_bot_status confirms a Private Hive with the bot\'s signed reads', asyn
   const out = json(result);
   assert.equal(out.found, true); assert.equal(out.publicPage, false); assert.match(out.note, /Private Hive/);
   assert.doesNotMatch(text(result), /Check BOT_HIVE_ID/);
-  assert.equal(out.name, 'BTC bot'); assert.equal(out.venue, 'kalshi'); assert.equal(out.perCallCapUsd, 2); assert.equal(out.openCalls, 1);
+  assert.equal(out.name, 'BTC bot'); assert.equal(out.venue, 'kalshi'); assert.equal(out.amountPerCallUsd, 2); assert.equal(out.openCalls, 1);
   assert.ok(!('dailyBudgetUsd' in out) && !('remainingUsd' in out), 'the legacy daily budget is not a limit, so it is not shown');
   assert.equal(calls[0].url, 'https://api.hivetrade.com/api/bot/budget'); assert.equal(calls[0].options.method, 'POST');
   const body = JSON.parse(calls[0].options.body);

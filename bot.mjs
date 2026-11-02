@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { privateKeyToAccount } from 'viem/accounts';
 import { config, positive } from './lib/config.mjs';
-import { jsonRequest, kalshiStake } from './lib/protocol.mjs';
-import { discoverPolymarket, preparePolymarket } from './lib/polymarket.mjs';
+import { jsonRequest, readBotConfig, PM_OP_EXECUTION } from './lib/protocol.mjs';
+import { discoverPolymarket, operatorLimitPrice, preparePolymarket } from './lib/polymarket.mjs';
 import { strategy } from './strategy.mjs';
 import { execute } from './lib/run.mjs';
 import { SafeError, stopMessage } from './lib/errors.mjs';
 import { isSupportedKalshiTicker, isSupportedKalshiSeries, kalshiSeriesOf, pickOpenMarket } from './lib/kalshi-markets.mjs';
 let stage = 'configuration';
+const OPERATOR_NOT_READY = 'This Hive does not trade from your HiveTrade account yet. In HiveTrade, open the bot in Studio, set its Amount per Call and Total budget and allow the bot to trade (the same step is part of creating the Hive), then run again. A bot created before this change: see "Older Polymarket bots" in the README.';
 const price = p => (Number.isFinite(p) ? `$${p.toFixed(3).replace(/0$/, '')}` : 'no ask');
 // The strategy may explain itself: `reasons` is a list of short text lines,
 // printed as TRACE lines so the person can see why the rule did or did not trade.
@@ -65,27 +66,54 @@ async function main() {
   positive(decision.maxPrice, 'strategy maxPrice', 0.99);
   let signal = { hiveId: cfg.hiveId, venue: cfg.venue, side: decision.side,
     signalStrength: cfg.strength, intent: true, nonce: randomUUID(), issuedAt: Date.now() };
+  // A Call carries no amount: the bot sends the market, the side and a price
+  // cap. Each Call stakes the Amount per Call set on your Hive in HiveTrade
+  // (when you create it, editable in Studio), within the Hive's Total budget.
   if (cfg.venue === 'kalshi') {
-    const contracts = positive(process.env.KALSHI_CONTRACTS ?? 1, 'KALSHI_CONTRACTS');
-    if (!Number.isSafeInteger(contracts)) throw new SafeError('KALSHI_CONTRACTS must be a whole number.');
     const cents = Math.floor((decision.maxPrice + 1e-12) * 100);
     if (cents < 1) throw new SafeError('Your strategy\'s maxPrice is under one cent, the lowest Kalshi price.');
-    signal = { ...signal, execution: 'hivetrade-v1', kalshiTicker: market.ticker,
-      kalshiContracts: contracts, kalshiPriceCents: cents, stakeUsd: kalshiStake(contracts, cents) };
-    const orderUsd = contracts * cents / 100;
-    console.log(`TRACE cost of one Call on Kalshi: at most $${signal.stakeUsd.toFixed(2)} = ${contracts} contract${contracts === 1 ? '' : 's'} x $${(cents / 100).toFixed(2)} price cap ($${orderUsd.toFixed(2)}) + Kalshi fee up to $${(signal.stakeUsd - orderUsd).toFixed(2)}`);
-  } else signal = { ...signal, conditionId: market.conditionId, orderType: 'marketable', stakeUsd: positive(process.env.STAKE_USD ?? 1, 'STAKE_USD') };
-  if (signal.stakeUsd > cfg.maxStake) throw new SafeError(`This trade's stake ($${signal.stakeUsd}) is above MAX_STAKE_USD ($${cfg.maxStake}). ${cfg.venue === 'kalshi' ? 'KALSHI_CONTRACTS at this price' : 'STAKE_USD'} must fit the cap you chose.`);
-  console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: decision.maxPrice, maximumStakeUsd: signal.stakeUsd }));
+    signal = { ...signal, execution: 'hivetrade-v1', kalshiTicker: market.ticker, kalshiPriceCents: cents };
+  } else if (cfg.legacySelfManaged) {
+    // LEGACY: an older bot buys from its own wallet, so it still signs a stake.
+    signal = { ...signal, conditionId: market.conditionId, stakeUsd: cfg.stake, orderType: 'marketable' };
+    if (signal.stakeUsd > cfg.maxStake) throw new SafeError(`This trade's stake ($${signal.stakeUsd}) is above MAX_STAKE_USD ($${cfg.maxStake}). STAKE_USD must fit the cap you chose.`);
+  } else {
+    // New Polymarket bots sign a pm-op-v1 Call: HiveTrade places the order in
+    // your own HiveTrade account (limitPrice is added at live time).
+    signal = { ...signal, conditionId: market.conditionId, execution: PM_OP_EXECUTION };
+  }
+  console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: decision.maxPrice,
+    ...(cfg.legacySelfManaged ? { stakeUsd: signal.stakeUsd } : { amount: 'the Amount per Call set on your Hive' }) }));
   if (!cfg.live) return; // No signer, auth, intent, order or fill submission in dry run.
   stage = 'signer and Hive preflight';
   const account = privateKeyToAccount(process.env.BOT_PRIVATE_KEY);
   const issuedAt = Date.now();
   const budget = await jsonRequest(`${cfg.api}/api/bot/budget`, { issuedAt,
     signature: await account.signMessage({ message: `hivetrade:bot-budget:${issuedAt}` }) });
-  if (budget.hiveId !== cfg.hiveId || !Number.isFinite(budget.maxStakeUsd) || signal.stakeUsd > budget.maxStakeUsd) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID, or the stake is above the Hive\'s per-call cap.');
-  stage = 'Polymarket order preparation';
-  const submitOrder = cfg.venue === 'polymarket' ? await preparePolymarket(account, cfg, market, decision, signal.stakeUsd) : undefined;
+  if (budget.hiveId !== cfg.hiveId || !Number.isFinite(budget.maxStakeUsd)) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID.');
+  if (cfg.legacySelfManaged && signal.stakeUsd > budget.maxStakeUsd) throw new SafeError('The stake is above the Amount per Call set on your Hive.');
+  if (!cfg.legacySelfManaged) console.log(`TRACE each Call stakes your Hive's Amount per Call: $${budget.maxStakeUsd}`);
+  let submitOrder;
+  if (cfg.venue === 'polymarket' && !cfg.legacySelfManaged) {
+    stage = 'Hive mode check';
+    const mode = await readBotConfig({ account, api: cfg.api });
+    if (mode.hiveId !== cfg.hiveId) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID.');
+    if (mode.pmCaptainExecution !== 'operator') throw new SafeError(OPERATOR_NOT_READY);
+    stage = 'Polymarket price step lookup';
+    signal.limitPrice = await operatorLimitPrice(market, decision);
+  } else if (cfg.venue === 'polymarket') {
+    // Legacy: the bot places its own order ONLY while HiveTrade says this Hive
+    // is still self-managed. Any other answer (operator, hivetrade, a mode this
+    // kit does not know) means never place an order yourself.
+    stage = 'Hive mode check';
+    const mode = await readBotConfig({ account, api: cfg.api });
+    if (mode.hiveId !== cfg.hiveId) throw new SafeError('The signing key\'s Hive does not match BOT_HIVE_ID.');
+    if (mode.pmCaptainExecution !== 'self') throw new SafeError(mode.pmCaptainExecution === 'operator'
+      ? 'This Hive now trades from your own HiveTrade account. Remove POLYMARKET_LEGACY_SELF_MANAGED and POLYMARKET_DEPOSIT_WALLET from .env, then run again.'
+      : 'HiveTrade does not run this Hive as a self-managed bot, so this bot must not place its own order. Nothing was sent.');
+    stage = 'Polymarket order preparation (legacy self-managed bot)';
+    submitOrder = await preparePolymarket(account, cfg, market, decision, signal.stakeUsd);
+  }
   signal.issuedAt = Date.now();
   stage = 'live execution: inspect journal';
   const result = await execute({ cfg, account, signal, submitOrder, request: jsonRequest });

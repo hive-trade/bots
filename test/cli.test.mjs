@@ -110,10 +110,10 @@ test('a stop names the setting to fix and mentions the journal only when there i
     [{ VENUE: '' }, /VENUE must be polymarket or kalshi/],
     [{ VENUE: 'polymarket', BOT_HIVE_ID: 'abc' }, /BOT_HIVE_ID must be a whole number/],
     [{ VENUE: 'polymarket', BOT_LIVE_TRADING_ENABLED: 'true' }, /BOT_HIVE_ID is not set\. Real trading needs it/],
-    [{ VENUE: 'polymarket', MAX_STAKE_USD: '-1' }, /MAX_STAKE_USD must be a number above 0/],
+    [{ VENUE: 'polymarket', POLYMARKET_LEGACY_SELF_MANAGED: 'true', MAX_STAKE_USD: '-1' }, /MAX_STAKE_USD must be a number above 0/],
     [{ VENUE: 'polymarket', MARKET_SLUG: '' }, /MARKET_SLUG is not set/],
     [{ VENUE: 'polymarket', MARKET_SLUG: 'https://polymarket.com/event/x' }, /MARKET_SLUG is a link, not a slug\. Run npm run find-market/],
-    [{ VENUE: 'polymarket', STAKE_USD: '5' }, /stake \(\$5\) is above MAX_STAKE_USD \(\$1\)/],
+    [{ VENUE: 'polymarket', POLYMARKET_LEGACY_SELF_MANAGED: 'true', STAKE_USD: '5' }, /stake \(\$5\) is above MAX_STAKE_USD \(\$1\)/],
     [{ VENUE: 'kalshi', KALSHI_TICKER: 'BTC' }, /KALSHI_TICKER must be an exact ticker/],
     [{ VENUE: 'polymarket', FIXTURE_DECISION: 'throw' }, /Your strategy threw an error: my data feed is empty/],
   ];
@@ -129,10 +129,16 @@ test('a stop names the setting to fix and mentions the journal only when there i
 test('Kalshi: any accepted series works, KALSHI_SERIES picks the open market, a closed one says so', t => {
   const dir = mkdtempSync(join(tmpdir(), 'hivetrade-kalshi-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const soccer = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXEPLGAME-26OCT25ARSCHE-ARS', MAX_STAKE_USD: '1' });
+  const soccer = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXEPLGAME-26OCT25ARSCHE-ARS' });
   assert.equal(soccer.status, 0, soccer.stderr); assert.match(soccer.stdout, /"market":"KXEPLGAME-26OCT25ARSCHE-ARS"/);
-  // One contract at a 45-cent cap: $0.45 + fee ceil(7 x 45 x 55 / 10000) cents = $0.47.
-  assert.match(soccer.stdout, /^TRACE cost of one Call on Kalshi: at most \$0\.47 = 1 contract x \$0\.45 price cap \(\$0\.45\) \+ Kalshi fee up to \$0\.02$/m);
+  // A Call carries no amount: the dry run names the price cap and says the
+  // stake is the Amount per Call set on the Hive.
+  assert.match(soccer.stdout, /"priceCap":0\.45,"amount":"the Amount per Call set on your Hive"/);
+  assert.doesNotMatch(soccer.stdout, /contract x|stakeUsd/);
+  // An old setting is ignored, out loud.
+  const old = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: 'KXEPLGAME-26OCT25ARSCHE-ARS', KALSHI_CONTRACTS: '3', MAX_STAKE_USD: '1' });
+  assert.equal(old.status, 0, old.stderr);
+  assert.match(old.stderr, /MAX_STAKE_USD, KALSHI_CONTRACTS are ignored: each Call stakes the Amount per Call set on your Hive/);
   const series = runBot(dir, { VENUE: 'kalshi', KALSHI_TICKER: '', KALSHI_SERIES: 'KXBTC15M' });
   assert.equal(series.status, 0, series.stderr);
   assert.match(series.stdout, /TRACE KALSHI_SERIES KXBTC15M: the market open right now is KXBTC15M-EXAMPLE/);

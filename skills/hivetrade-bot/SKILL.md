@@ -39,24 +39,29 @@ Ask, reusing anything already said:
 1. Venue: **Kalshi** (shorter: HiveTrade executes with the user's connected Kalshi
    key; only markets in the series listed at docs.hivetrade.com/run-a-bot/kalshi,
    set as `KALSHI_TICKER` or, for fast series like `KXBTC15M`, `KALSHI_SERIES`) or **Polymarket**
-   (Hive creation and dry runs work; live trading for new bots is not self-serve
-   yet, they will trade from the user's own HiveTrade account).
+   (the bot signs the Call and HiveTrade places the order in the user's own
+   HiveTrade account).
 2. Bot name (3 to 40 characters), a one-line description, and a category.
 3. The user's own rule in their words, and the exact market (a link is fine).
    For Polymarket, run `find_market` (or `npm run find-market -- <link>`): an
    event link can hold many markets; show the list and let the user pick. Tell
    them the market's end date as a fact. Never suggest, rank or choose a market.
-4. The most it may spend per Call, in USD (1 to 100). Use that one number for the
-   Hive's per-call cap and `MAX_STAKE_USD`, and keep `STAKE_USD` (or the Kalshi
-   contracts at the price cap) at or below it. Never describe a daily limit:
-   there is none.
+4. Two amounts, both set on the Hive (at Create, editable in Studio), never in
+   `.env`:
+   - **Amount per Call**, in USD (1 to 100): what each Call stakes.
+   - **Total budget**, in USD: the most the bot may have at risk across its
+     Calls. Live stakes plus losses since it was set count as used; wins refill
+     it up to the total.
+   A Call carries no amount: the bot sends the market, the side and a price cap.
+   Never describe a daily limit: there is none. State the amounts as the user's
+   choice; never suggest one.
 5. Where it runs: this computer, or a host (Railway helper available).
 6. Environment: production (default, app.hivetrade.com) or dev
    (dev.hivetrade.com). Say plainly that dev also trades real money on Polymarket
    and Kalshi.
 
-**Check:** you can restate venue, name, idea, market, cap and host in one sentence
-and the user agrees.
+**Check:** you can restate venue, name, idea, market, Amount per Call, Total
+budget and host in one sentence and the user agrees.
 
 ## 2. Get the kit and create the signing identity
 
@@ -80,8 +85,9 @@ Run `list_strategies` (or read `strategy-playbook.md`). Put the user's rule in
 a rule that says "below 20 cents", implement exactly what the user said and tell
 them how the limit reads. `reasons` is a list of short text lines explaining the
 decision in the user's terms; the dry run prints them as `TRACE` lines (this is
-the "decision trace"). Keep execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`) and
-stake settings with `update_settings` (or `npm run settings -- KEY=value`). Put
+the "decision trace"). Keep execution code untouched. Set the market (`KALSHI_TICKER` or `MARKET_SLUG`)
+with `update_settings` (or `npm run settings -- KEY=value`). There is no stake
+setting: each Call stakes the Hive's Amount per Call. Put
 any value the rule needs in a `STRATEGY_*` setting or in `strategy.mjs`. Never
 open `.env`.
 
@@ -97,16 +103,16 @@ key; nothing is submitted. A dry run needs no Hive ID, so it works before
 registration (step 5).
 
 **Check:** the output shows `TRACE` lines (the market, its asks, then the rule's
-reasons) followed by `DRY RUN` with the market, side, price cap and maximum
-stake, or `SKIP: your rule did not select a trade.` Explain what it means and what a dry run does not prove.
+reasons) followed by `DRY RUN` with the market, side and price cap (the amount
+reads "the Amount per Call set on your Hive"), or `SKIP: your rule did not select a trade.` Explain what it means and what a dry run does not prove.
 
 ## 5. Registration link
 
-`prepare_registration` with name, bio, category, venue, `maxStakeUsd` and
+`prepare_registration` with name, bio, category, venue, `amountPerCallUsd` and
 environment. Give the user the link and its instructions: open it signed in,
-check that the signing address equals the one from step 2, review, press
-Create. A bot Hive has no agreement checkbox; do not tell the user to look for one. Without the MCP tool, build the same link:
-`https://app.hivetrade.com/bots/new?name=…&bio=…&category=…&venue=…&signer=<address>&maxStake=…&from=agent`
+check that the signing address equals the one from step 2, review the Amount
+per Call, type the Total budget, allow the bot, press Create. A bot Hive has no agreement checkbox; do not tell the user to look for one. Without the MCP tool, build the same link:
+`https://app.hivetrade.com/bots/new?name=…&bio=…&category=…&venue=…&signer=<address>&maxStake=<Amount per Call>&from=agent`
 (dev: `https://dev.hivetrade.com`), URL-encoded.
 
 **Check:** the user confirms they pressed Create and the address matched.
@@ -135,17 +141,19 @@ signed `POST /api/bot/budget` (see [protocol](../../docs/protocol.md)).
 
 - **Kalshi:** the user connects their Kalshi API key in HiveTrade Settings and
   completes the execution consent. Nothing Kalshi-related goes in `.env` except
-  the ticker and contracts.
-- **Polymarket:** say plainly that live trading for a new Polymarket bot is not
-  self-serve yet: new Polymarket bots will trade from the user's own HiveTrade
-  account, which HiveTrade is still building. There is nothing to fund for the
-  bot. Never tell the user to send money to a bot address, sign in to Polymarket
-  as the bot, or import the bot's key into a wallet app. "Register the wallet"
-  (`npm run bind-wallet`) is only for older bots that already have their own
-  deposit wallet.
+  the ticker (or series).
+- **Polymarket:** the bot trades from the user's own HiveTrade account. The user,
+  in HiveTrade, sets the Hive's Amount per Call and Total budget and allows the
+  bot to trade (in Studio, or while creating the Hive). There is nothing to fund for the bot.
+  Never tell the user to send money to a bot address, sign in to Polymarket as
+  the bot, or import the bot's key into a wallet app. `POLYMARKET_LEGACY_SELF_MANAGED`
+  and "register the wallet" (`npm run bind-wallet`) are only for older bots that
+  already place their own orders from their own deposit wallet; never set them
+  for a new bot.
 
 **Check:** Kalshi - the user confirms the key and consent are done. Polymarket -
-the user understands that live trading waits for HiveTrade.
+the user confirms the Amount per Call and Total budget are set and the bot is
+allowed to trade.
 Run `dry_run` again: it should reach `DRY RUN` or `SKIP`.
 
 ## 8. Hosting
@@ -160,8 +168,8 @@ works only on their own computer today.
 
 ## 9. Live trading: only on the user's explicit decision
 
-Summarize the exact market, side, price cap, stake, venue account and what remains
-unverified. Live trading starts only when the user decides and sets
+Summarize the exact market, side, price cap, the Hive's Amount per Call and Total
+budget, the venue account and what remains unverified. Live trading starts only when the user decides and sets
 `BOT_LIVE_TRADING_ENABLED=true` themselves (on a host, they also set
 `BOT_PRIVATE_KEY` in its secret settings themselves). Do not do it for them, and
 never as a test. After a live run, check the venue receipt and the Hive Call

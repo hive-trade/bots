@@ -1,3 +1,6 @@
+// LEGACY, older bots only (POLYMARKET_LEGACY_SELF_MANAGED=true). New Polymarket
+// bots have no wallet of their own: HiveTrade places their orders in the owner's
+// own HiveTrade account.
 // Register the wallet: tell HiveTrade which Polymarket deposit wallet belongs
 // to this bot's Hive. A setup write signed by the bot's key, not a trade.
 import { isAddress } from 'viem';
@@ -8,6 +11,7 @@ import { SafeError, stopMessage } from '../lib/errors.mjs';
 try {
   const cfg = config(process.env, { requireHiveId: true });
   if (cfg.venue !== 'polymarket') throw new SafeError('Registering a wallet is only for Polymarket Hives (VENUE=polymarket).');
+  if (!cfg.legacySelfManaged) throw new SafeError('Registering a wallet is only for older bots that place their own orders (POLYMARKET_LEGACY_SELF_MANAGED=true). New Polymarket bots have no wallet of their own: HiveTrade places their orders in your own HiveTrade account.');
   const walletAddress = process.env.POLYMARKET_DEPOSIT_WALLET;
   if (!isAddress(walletAddress ?? '')) throw new SafeError('POLYMARKET_DEPOSIT_WALLET is not set to a wallet address. Set it in .env to the bot\'s deposit wallet.');
   if (!/^0x[0-9a-fA-F]{64}$/.test(process.env.BOT_PRIVATE_KEY ?? '')) throw new SafeError('BOT_PRIVATE_KEY in .env is missing or malformed. Restore .env from your backup; never paste a key in chat.');

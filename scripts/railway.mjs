@@ -8,7 +8,7 @@ import { isSupportedKalshiTicker, isSupportedKalshiSeries } from '../lib/kalshi-
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'MAX_STAKE_USD', 'KALSHI_TICKER', 'KALSHI_SERIES', 'KALSHI_CONTRACTS', 'MARKET_SLUG', 'STAKE_USD']);
+const allowed = new Set(['VENUE', 'BOT_API_URL', 'BOT_HIVE_ID', 'EXAMPLE_SIDE', 'EXAMPLE_MAX_PRICE', 'KALSHI_TICKER', 'KALSHI_SERIES', 'MARKET_SLUG']);
 // plan may run before the Railway project exists (requireTargets: false): it
 // checks everything else and reports the missing UUIDs. deploy and verify
 // always require all three.

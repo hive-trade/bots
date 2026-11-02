@@ -31,7 +31,8 @@ same server, see [Other MCP clients](#other-mcp-clients).
 | Read the Hive ID back and save it to `.env` | Agent |
 | Check the signing address on the form and press **Create bot Hive** | You |
 | Kalshi: connect your Kalshi API key in HiveTrade Settings and give the execution consent | You |
-| Polymarket: nothing yet. Live trading for new bots is not self-serve; they will trade from your own HiveTrade account | |
+| Set the Hive's Amount per Call (what each Call stakes) and Total budget, at Create or later in Studio | You |
+| Polymarket: allow the bot to trade in HiveTrade (Studio, or while creating the Hive). The bot trades from your own HiveTrade account | You |
 | Turn on live trading (`BOT_LIVE_TRADING_ENABLED=true`) | You |
 | On a server: put the signing key in the host's secret settings | You |
 
@@ -52,26 +53,28 @@ same server, see [Other MCP clients](#other-mcp-clients).
    trading is forced off and the run gets no key. It needs no Hive ID, so it
    works before registration.
 6. **Registration link.** The agent calls `prepare_registration` with the name,
-   venue and, optionally, description, category, per-call cap and environment.
+   venue and, optionally, description, category, Amount per Call and environment.
    It gives you a link such as
    `https://app.hivetrade.com/bots/new?name=…&venue=kalshi&signer=0x…&maxStake=…&from=agent`.
    Nothing is submitted.
 7. **You create the Hive.** Open the link in the browser where you are signed in
    to HiveTrade. Check that the signing address on the form is exactly the one
-   your agent showed you. If it differs, stop. Review the rest and press
-   **Create bot Hive**.
+   your agent showed you. If it differs, stop. Review the rest, check the
+   **Amount per Call** (what each Call stakes), type the **Total budget** (the
+   most the bot may have at risk across its Calls), and press **Create bot
+   Hive**. You can change both amounts later in Studio. The bot sends no amount
+   with its Calls.
 8. **Hive ID.** Tell the agent you are done. It calls `check_registration`, which
    asks HiveTrade with a request signed by the bot's key and saves `BOT_HIVE_ID`.
    If the lookup is not available, it asks you for the Hive ID the page showed and
    calls `set_hive_id`.
 9. **Confirm.** The agent calls `get_bot_status`. It confirms the Hive with
    requests signed by the bot's key, so it also works for a Private Hive (the
-   form's default), and shows the name, venue and per-call cap.
+   form's default), and shows the name, venue and Amount per Call.
 10. **Venue setup (you).** Kalshi: connect your Kalshi API key in HiveTrade
-    Settings and give the execution consent. Polymarket: live trading for a
-    new bot is not self-serve yet; new Polymarket bots will trade from your own
-    HiveTrade account once HiveTrade finishes that part. Nothing to fund, no
-    Polymarket sign-in, no wallet app, no key import.
+    Settings and give the execution consent. Polymarket: in HiveTrade, allow the
+    bot to trade (in Studio, or while creating the Hive). The bot trades from your own HiveTrade account: nothing to fund for
+    the bot, no Polymarket sign-in, no wallet app, no key import.
     The agent runs `dry_run` again.
 11. **Hosting (optional).** The agent calls `get_deploy_guide` and follows the
     `hivetrade-deploy` skill. Today this is practice only: a scheduled dry run
@@ -87,11 +90,11 @@ Code project folder, else the current directory.
 |---|---|---|---|
 | `get_setup_status` | Reports which steps are done: kit, dependencies, `.env` and whether it is private, public signing address, venue, environment, Hive ID, an older bot's Polymarket deposit wallet, market, live trading flag, and the next step. | none | Return a key or any other secret. |
 | `get_signing_key_command` | Returns the command the person runs in their own terminal (`npm run setup`, or `npm run setup -- --dev`) and what to tell them. If the key exists, returns only its public address. | `environment` (optional) | Create a key, run a command, or show the key. |
-| `update_settings` | Changes public settings in `.env`: venue, market, stake, example and `STRATEGY_*` values. | `settings` (object, required) | Write the key, the live-trading switch, the Hive ID or the API. |
-| `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `maxStakeUsd` (1 to 100), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
+| `update_settings` | Changes public settings in `.env`: venue, market, example and `STRATEGY_*` values. The amount each Call stakes is not in `.env`: it is the Hive's Amount per Call. | `settings` (object, required) | Write the key, the live-trading switch, the Hive ID or the API. |
+| `prepare_registration` | Builds the pre-filled "Create a bot Hive" link for this bot's signing address. Saves `BOT_API_URL` for the chosen environment. | `name` (3 to 40 characters, required), `venue` (`polymarket` or `kalshi`, required), `bio` (up to 500 characters), `category` (one of the form's categories), `amountPerCallUsd` (1 to 100, what each Call stakes), `environment` (`prod` or `dev`) | Submit the form. Switch environment for a bot that already has a Hive ID. |
 | `check_registration` | Asks HiveTrade, with a request signed by the bot's key, whether the Hive exists. On success writes `BOT_HIVE_ID`, `BOT_API_URL` and `VENUE` to `.env`. | `environment` (optional) | Retry on its own, or change `.env` when the lookup fails. |
 | `set_hive_id` | Writes `BOT_HIVE_ID` to `.env`. For when the automatic lookup is unavailable. | `hiveId` (whole number, 1 or more, required) | Write any other setting. |
-| `get_bot_status` | Confirms the Hive with requests signed by the bot's key (`/api/bot/budget`, `/api/bot/whoami`), so it works for a Private Hive: name, handle, venue, per-call cap, open Calls, paused. Adds member count and last Call when the Hive is public. | `environment` (optional) | Return the key, or change `.env`. |
+| `get_bot_status` | Confirms the Hive with requests signed by the bot's key (`/api/bot/budget`, `/api/bot/whoami`), so it works for a Private Hive: name, handle, venue, Amount per Call, open Calls, paused. Adds member count and last Call when the Hive is public. | `environment` (optional) | Return the key, or change `.env`. |
 | `find_market` | Turns a polymarket.com link or slug into the exact `MARKET_SLUG`, with status and end date. An event link returns its markets for the person to pick. Public read-only Gamma lookup. | `link` (required) | Suggest, rank or choose a market. |
 | `list_strategies` | Explains where the strategy goes and the generic example ideas in this kit. | none | Share HiveTrade's own production strategies (they are not in this kit). |
 | `get_deploy_guide` | Explains hosting on Railway and who handles the key on a server. | none | Deploy anything or upload a key. |

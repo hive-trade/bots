@@ -37,7 +37,8 @@ npm test
 `plan` makes no Railway calls and works with the placeholder UUIDs still in the
 file, so you can check the config before creating a Railway account or project.
 It lists which UUIDs are still missing; `deploy` refuses until all three are set.
-Set `STAKE_USD` and `MAX_STAKE_USD` to the amounts you chose.
+There is no stake variable: each Call stakes the Amount per Call set on the
+Hive in HiveTrade, within its Total budget.
 
 Choose `intervalMinutes` from 5, 10, 15, 20, 30 or 60. Schedules run in UTC.
 Railway cron is approximate and can vary by minutes; it is unsuitable for precise
