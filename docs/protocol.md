@@ -18,8 +18,15 @@ See [agent setup](agent-setup.md#registration-protocol).
 
 `POST /api/bot/budget` with `{ issuedAt, signature }`, signing
 `hivetrade:bot-budget:<issuedAt>`. Validate `hiveId` and `maxStakeUsd` from its
-response. This does not reserve funds or guarantee acceptance. The API applies
+response. Its daily-budget fields (`dailyBudgetUsd`, `remainingUsd`) are legacy
+figures and limit nothing; do not show them as a limit. This does not reserve
+funds or guarantee acceptance. The API applies
 its other authentication, venue, balance, consent and execution gates on submit.
+
+It is also the status check after registration: it answers for the signer's own
+Hive even when that Hive is Private, which the public `GET /api/hives/<id>` cannot
+see. HTTP 401 with `signer is not a registered bot` means no Hive uses this
+signing address on that environment.
 
 ## Polymarket
 
@@ -47,7 +54,14 @@ halt for reconciliation. An order ID alone is not evidence of a fill. API-owned
 follower orders can remain even when the Captain fails: never report a fabricated
 no-fill or assume everything was canceled.
 
-Wallet binding: `POST /api/admin/bot/register-wallet` with
+The Captain leg above (own deposit wallet, local order, fill report) is how
+older Polymarket bots trade. New Polymarket bots will instead trade from the Hive
+owner's own HiveTrade account, with the bot only signing the Call; that API is not
+available yet, and this section will change when it is.
+
+Register the wallet (`npm run bind-wallet`, same as `npm run register-wallet`),
+for bots created before that, whose operator set up the wallet:
+`POST /api/admin/bot/register-wallet` with
 `{ hiveId, walletAddress, issuedAt, signature }`; sign
 `hivetrade:bot-register-wallet:<hiveId>:<lowercase-wallet>:<issuedAt>`.
 This route uses the bot signature despite its `/admin` prefix.

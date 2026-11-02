@@ -10,7 +10,7 @@ import { TOOLS, callTool, botDir } from './tools.mjs';
 const deps = await loadDeps().catch(error => { console.error(error.message); process.exit(1); });
 const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const server = new deps.Server({ name: 'hivetrade-bot', version }, { capabilities: { tools: {} },
-  instructions: 'Set up the person\'s own HiveTrade bot. Follow skills/hivetrade-bot/SKILL.md. Never ask for or display a private key; the person creates the Hive and decides on live trading.' });
+  instructions: 'Set up the person\'s own HiveTrade bot. Follow skills/hivetrade-bot/SKILL.md. Never ask for or display a private key. Never run npm run setup and never read or open .env: the person creates the key in their own terminal, creates the Hive and decides on live trading.' });
 server.setRequestHandler(deps.ListToolsRequestSchema, async () => ({
   tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
 }));
