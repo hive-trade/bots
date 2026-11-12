@@ -10,7 +10,7 @@ participants' own venue accounts. Trading fees apply.
 ## Paste this into your agent
 
 New to this? Use an AI agent that can run commands on your computer (Claude Code,
-Codex, Cursor). Step-by-step for beginners: https://docs.hivetrade.com/run-a-bot/one-prompt
+Codex, Cursor, Hermes Agent). Step-by-step for beginners: https://docs.hivetrade.com/run-a-bot/one-prompt
 
 ```text
 Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
@@ -47,6 +47,11 @@ first (step 1). On the first session the plugin installs its dependencies, which
 can take about a minute; if the server shows as failed in `/mcp`, reconnect it.
 The server never returns your private key, never posts a Call, and has no way to
 enable live trading, move funds or read an account credential.
+
+**Hermes Agent:** from your clone (after `npm ci`), run
+`hermes mcp add hivetrade-bot --command node --env HIVETRADE_BOT_DIR="$PWD" --args "$PWD/mcp/server.mjs"`
+and `hermes skills install hive-trade/bots/skills/hivetrade-bot`, then ask it to
+"set up my HiveTrade bot" ([details](docs/agent-setup.md#hermes-agent)).
 
 **Other MCP clients:** run `node mcp/server.mjs` from your clone (after `npm ci`)
 as a stdio server. It uses the current directory, or `HIVETRADE_BOT_DIR` if set.

@@ -20,6 +20,15 @@ test('no doc tells anyone to tick an agreement, import the key into a wallet, or
     assert.doesNotMatch(text, /hivetrade-docs\.vercel\.app/, file);
   }
 });
+test('Hermes loads the skills and AGENTS.md: no "do not ... tell the user" sentence', () => {
+  // Hermes (rule deception_hide) reads that phrasing as an instruction to hide
+  // something from the person: it blocks the skill install, and it drops the
+  // whole of AGENTS.md from its context. State the fact instead ("the form has
+  // no agreement checkbox").
+  for (const file of ['skills/hivetrade-bot/SKILL.md', 'skills/hivetrade-deploy/SKILL.md', 'AGENTS.md']) {
+    assert.doesNotMatch(read(file), /do\s+not\s+(?:\w+\s+)*tell\s+(?:\w+\s+)*the\s+user/i, file);
+  }
+});
 test('the agent hard rules about .env and setup are in AGENTS.md and the skill', () => {
   assert.match(read('AGENTS.md'), /never read, cat, grep, open or print \.env/i);
   assert.match(read('skills/hivetrade-bot/SKILL.md'), /Never read, cat, grep, open or print `\.env`/);

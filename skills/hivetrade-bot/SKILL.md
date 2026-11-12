@@ -111,7 +111,7 @@ reads "the Amount per Call set on your Hive"), or `SKIP: your rule did not selec
 `prepare_registration` with name, bio, category, venue, `amountPerCallUsd` and
 environment. Give the user the link and its instructions: open it signed in,
 check that the signing address equals the one from step 2, review the Amount
-per Call, type the Total budget, allow the bot, press Create. A bot Hive has no agreement checkbox; do not tell the user to look for one. Without the MCP tool, build the same link:
+per Call, type the Total budget, allow the bot, press Create. A bot Hive's form has no agreement checkbox. Without the MCP tool, build the same link:
 `https://app.hivetrade.com/bots/new?name=…&bio=…&category=…&venue=…&signer=<address>&maxStake=<Amount per Call>&from=agent`
 (dev: `https://dev.hivetrade.com`), URL-encoded.
 
