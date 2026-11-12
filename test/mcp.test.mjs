@@ -45,9 +45,11 @@ test('the read-only mark is on exactly the tools that change nothing', () => {
   for (const t of TOOLS) assert.ok(t.annotations === undefined || t.annotations.readOnlyHint === true, t.name);
 });
 
-const snapshot = dir => Object.fromEntries(readdirSync(dir, { recursive: true }).sort()
-  .filter(f => statSync(join(dir, f)).isFile())
-  .map(f => [f, { mode: statSync(join(dir, f)).mode & 0o777, text: readFileSync(join(dir, f), 'utf8') }]));
+// Every file and folder, with its mode and (for files) its contents.
+const snapshot = dir => Object.fromEntries(readdirSync(dir, { recursive: true }).sort().map(f => {
+  const stat = statSync(join(dir, f));
+  return [f, { mode: stat.mode & 0o777, text: stat.isDirectory() ? '(folder)' : readFileSync(join(dir, f), 'utf8') }];
+}));
 // Arguments that reach each tool's writing path, if it has one (dev is the non-default environment).
 const writingPathArgs = {
   get_setup_status: {}, get_signing_key_command: { environment: 'dev' }, update_settings: { settings: { EXAMPLE_SIDE: 'NO' } },
@@ -58,19 +60,20 @@ const writingPathArgs = {
 test('every tool marked read-only leaves the bot folder exactly as it was', async t => {
   const request = async url => (new URL(url).pathname === '/markets'
     ? [{ slug: 'will-x-win', question: 'Will X win?', active: true, closed: false, acceptingOrders: true, endDate: '2099-01-01T00:00:00Z' }] : []);
+  const bare = kit(t); // no .env yet
   const fresh = kit(t); makeIdentity(fresh);
   const registered = kit(t); makeIdentity(registered);
   await callTool('set_hive_id', { hiveId: 9 }, { dir: registered, deps });
   for (const tool of TOOLS.filter(t => t.annotations?.readOnlyHint)) {
     assert.ok(tool.name in writingPathArgs, `add arguments for ${tool.name}`);
     let ran = false;
-    for (const dir of [fresh, registered]) {
+    for (const dir of [bare, fresh, registered]) {
       const before = snapshot(dir);
       const result = await callTool(tool.name, writingPathArgs[tool.name], { dir, deps, fetch: statusFetch(), request, now: () => 1789480000000 });
       ran ||= !result.isError;
       assert.deepEqual(snapshot(dir), before, `${tool.name} changed the bot folder`);
     }
-    assert.ok(ran, `${tool.name} failed in both folders, so this proved nothing about it`);
+    assert.ok(ran, `${tool.name} failed in every folder, so this proved nothing about it`);
   }
 });
 

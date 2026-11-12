@@ -50,8 +50,8 @@ enable live trading, move funds or read an account credential.
 
 **Hermes Agent:** from your clone (after `npm ci`), run
 `hermes mcp add hivetrade-bot --command node --env HIVETRADE_BOT_DIR="$PWD" --args "$PWD/mcp/server.mjs"`
-and `hermes skills install hive-trade/bots/skills/hivetrade-bot`, then ask it to
-"set up my HiveTrade bot" ([details](docs/agent-setup.md#hermes-agent)).
+(press Enter to enable its tools), then `hermes skills install hive-trade/bots/skills/hivetrade-bot`
+(type `y` to confirm), and ask it to "set up my HiveTrade bot" ([details](docs/agent-setup.md#hermes-agent)).
 
 **Other MCP clients:** run `node mcp/server.mjs` from your clone (after `npm ci`)
 as a stdio server. It uses the current directory, or `HIVETRADE_BOT_DIR` if set.

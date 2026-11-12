@@ -14,7 +14,7 @@ person's own Polymarket or Kalshi account.
 **Tools.** When the `hivetrade-bot` MCP server is connected, use its tools
 (`get_setup_status`, `get_signing_key_command`, `update_settings`,
 `prepare_registration`, `check_registration`, `set_hive_id`, `get_bot_status`,
-`list_strategies`, `get_deploy_guide`, `dry_run`). Otherwise use the npm scripts named in each step.
+`find_market`, `list_strategies`, `get_deploy_guide`, `dry_run`). Otherwise use the npm scripts named in each step.
 
 **Hard rules, every step:**
 - **Never read, cat, grep, open or print `.env`**, not even one line. Change
@@ -111,7 +111,7 @@ reads "the Amount per Call set on your Hive"), or `SKIP: your rule did not selec
 `prepare_registration` with name, bio, category, venue, `amountPerCallUsd` and
 environment. Give the user the link and its instructions: open it signed in,
 check that the signing address equals the one from step 2, review the Amount
-per Call, type the Total budget, allow the bot, press Create. A bot Hive's form has no agreement checkbox. Without the MCP tool, build the same link:
+per Call, type the Total budget, allow the bot, press Create. The only checkbox on the form is the one that allows the bot; there are no Terms to accept there. Without the MCP tool, build the same link:
 `https://app.hivetrade.com/bots/new?name=…&bio=…&category=…&venue=…&signer=<address>&maxStake=<Amount per Call>&from=agent`
 (dev: `https://dev.hivetrade.com`), URL-encoded.
 

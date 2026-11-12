@@ -206,19 +206,23 @@ cd my-bot
 npm ci
 ```
 
-From inside the folder, add the server and the setup skill:
+From inside the folder, add the server. When Hermes asks to enable its eleven
+tools, press Enter:
 
 ```bash
 hermes mcp add hivetrade-bot --command node --env HIVETRADE_BOT_DIR="$PWD" --args "$PWD/mcp/server.mjs"
+```
+
+Then add the setup skill. Hermes asks you to confirm a third-party skill; type `y`
+(pressing Enter cancels):
+
+```bash
 hermes skills install hive-trade/bots/skills/hivetrade-bot
 ```
 
-Say yes when Hermes asks to enable the eleven tools. Then start Hermes in the bot
-folder and ask it to "set up my HiveTrade bot".
+Start Hermes in the bot folder and ask it to "set up my HiveTrade bot".
 
 - `hermes mcp test hivetrade-bot` checks the connection. It lists the eleven tools.
-- If Hermes says MCP support is not installed, run `hermes setup`, then the
-  `hermes mcp add` command again.
 - To have Hermes ask before each tool that writes to the bot folder or runs the
   bot, add `trust: untrusted` to the `hivetrade-bot` entry under `mcp_servers` in
   `~/.hermes/config.yaml`. The six read-only tools still run without asking.

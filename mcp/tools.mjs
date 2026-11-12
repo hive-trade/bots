@@ -179,7 +179,7 @@ export function prepareRegistration({ dir, deps }, args = {}) {
       `Check that the signing address on the form is exactly ${account.address}. If it differs, do not create the Hive.`,
       'Review the name, description, category, venue and the Amount per Call (what each Call stakes). Add a description if it is empty.',
       'Enter the Total budget (the most the bot may have at risk across its Calls) and allow the bot to trade. You can change both amounts later in Studio.',
-      'Press Create bot Hive yourself. A bot Hive has no agreement checkbox.',
+      'Press Create bot Hive yourself. The only checkbox on the form is the one that allows the bot; there are no Terms to accept there.',
       'Tell your agent when it is done; it will look up the new Hive with check_registration.',
     ],
     note: 'Nothing was submitted. Only the person can create the Hive.' };
