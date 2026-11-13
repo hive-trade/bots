@@ -73,7 +73,13 @@ remain usable without the private HiveTrade monorepo.
 The guided flow is `skills/hivetrade-bot/SKILL.md`. Other MCP clients: `node mcp/server.mjs`
 (stdio; bot folder = current directory or `HIVETRADE_BOT_DIR`). The server must never return
 `.env` contents or a key, post a Call, enable live trading, fund, or read an account
-credential. Tool changes need tests in `test/mcp.test.mjs` proving that.
+credential. Tool changes need tests in `test/mcp.test.mjs` proving that. Mark a tool that
+changes nothing in the bot folder with `annotations: readOnly`: the tests run every marked tool
+and check the folder is unchanged. Hermes Agent loads the same server and skill
+(`docs/agent-setup.md#hermes-agent`). It scans the skills, and this file when it starts in the
+bot folder, for wording that reads like an order to hide something from the person: a hit blocks
+the skill install or drops this whole file from its context. State facts instead;
+`test/docs.test.mjs` keeps out the sentence shape it caught.
 
 For Railway server setup, follow `skills/hivetrade-deploy/SKILL.md` and
 `docs/railway.md`. Use the public-config deployment helper for scheduled previews.

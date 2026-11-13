@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, rmSync, statSync, copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, statSync, copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +35,68 @@ test('the tool list has no way to post a Call, enable live trading, fund, create
   const names = TOOLS.map(t => t.name);
   assert.deepEqual(names, ['get_setup_status', 'get_signing_key_command', 'update_settings', 'prepare_registration', 'check_registration', 'set_hive_id', 'get_bot_status', 'find_market', 'list_strategies', 'get_deploy_guide', 'dry_run']);
   for (const name of names) assert.doesNotMatch(name, /signal|live|fund|withdraw|credential|order|trade|create/);
+});
+
+// A client may skip its approval prompt for a tool marked readOnlyHint (Hermes
+// does on a server set to trust: untrusted), so the mark has to be true.
+const READ_ONLY = ['get_setup_status', 'get_signing_key_command', 'get_bot_status', 'find_market', 'list_strategies', 'get_deploy_guide'];
+test('the read-only mark is on exactly the tools that change nothing', () => {
+  assert.deepEqual(TOOLS.filter(t => t.annotations?.readOnlyHint === true).map(t => t.name), READ_ONLY);
+  for (const t of TOOLS) assert.ok(t.annotations === undefined || t.annotations.readOnlyHint === true, t.name);
+});
+
+// Every file and folder, with its mode and (for files) its contents.
+const snapshot = dir => Object.fromEntries(readdirSync(dir, { recursive: true }).sort().map(f => {
+  const stat = statSync(join(dir, f));
+  return [f, { mode: stat.mode & 0o777, text: stat.isDirectory() ? '(folder)' : readFileSync(join(dir, f), 'utf8') }];
+}));
+// Arguments that reach each tool's writing path, if it has one (dev is the non-default environment).
+const writingPathArgs = {
+  get_setup_status: {}, get_signing_key_command: { environment: 'dev' }, update_settings: { settings: { EXAMPLE_SIDE: 'NO' } },
+  prepare_registration: { name: 'Bot', venue: 'kalshi', environment: 'dev' }, check_registration: { environment: 'dev' },
+  set_hive_id: { hiveId: 5 }, get_bot_status: { environment: 'dev' }, find_market: { link: 'https://polymarket.com/event/will-x-win' },
+  list_strategies: {}, get_deploy_guide: {}, dry_run: {},
+};
+test('every tool marked read-only leaves the bot folder exactly as it was', async t => {
+  const request = async url => (new URL(url).pathname === '/markets'
+    ? [{ slug: 'will-x-win', question: 'Will X win?', active: true, closed: false, acceptingOrders: true, endDate: '2099-01-01T00:00:00Z' }] : []);
+  const bare = kit(t); // no .env yet
+  const fresh = kit(t); makeIdentity(fresh);
+  const registered = kit(t); makeIdentity(registered);
+  await callTool('set_hive_id', { hiveId: 9 }, { dir: registered, deps });
+  for (const tool of TOOLS.filter(t => t.annotations?.readOnlyHint)) {
+    assert.ok(tool.name in writingPathArgs, `add arguments for ${tool.name}`);
+    let ran = false;
+    for (const dir of [bare, fresh, registered]) {
+      const before = snapshot(dir);
+      const result = await callTool(tool.name, writingPathArgs[tool.name], { dir, deps, fetch: statusFetch(), request, now: () => 1789480000000 });
+      ran ||= !result.isError;
+      assert.deepEqual(snapshot(dir), before, `${tool.name} changed the bot folder`);
+    }
+    assert.ok(ran, `${tool.name} failed in every folder, so this proved nothing about it`);
+  }
+});
+
+test('the server sends the read-only marks to an MCP client', async t => {
+  const child = spawn(process.execPath, [join(root, 'mcp/server.mjs')], { env: { ...process.env, HIVETRADE_BOT_DIR: kit(t) } });
+  t.after(() => child.kill());
+  const waiting = new Map();
+  let buffered = '';
+  child.stdout.on('data', chunk => {
+    const lines = (buffered += chunk).split('\n');
+    buffered = lines.pop();
+    for (const line of lines.filter(Boolean)) { const message = JSON.parse(line); waiting.get(message.id)?.(message); }
+  });
+  const ask = (id, method, params) => new Promise((resolve, reject) => {
+    waiting.set(id, resolve);
+    setTimeout(() => reject(new Error(`no answer to ${method}`)), 10000).unref();
+    child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
+  });
+  await ask(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test', version: '0' } });
+  child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
+  const { tools } = (await ask(2, 'tools/list', {})).result;
+  assert.equal(tools.length, TOOLS.length);
+  assert.deepEqual(tools.filter(tool => tool.annotations?.readOnlyHint === true).map(tool => tool.name), READ_ONLY);
 });
 
 test('get_signing_key_command creates nothing: it tells the person to run npm run setup themselves', async t => {

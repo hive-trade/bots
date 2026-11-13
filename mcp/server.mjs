@@ -12,7 +12,7 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 const server = new deps.Server({ name: 'hivetrade-bot', version }, { capabilities: { tools: {} },
   instructions: 'Set up the person\'s own HiveTrade bot. Follow skills/hivetrade-bot/SKILL.md. Never ask for or display a private key. Never run npm run setup and never read or open .env: the person creates the key in their own terminal, creates the Hive and decides on live trading.' });
 server.setRequestHandler(deps.ListToolsRequestSchema, async () => ({
-  tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+  tools: TOOLS.map(({ name, description, inputSchema, annotations }) => ({ name, description, inputSchema, ...(annotations && { annotations }) })),
 }));
 server.setRequestHandler(deps.CallToolRequestSchema, async request =>
   callTool(request.params.name, request.params.arguments, { dir: botDir(), deps }));

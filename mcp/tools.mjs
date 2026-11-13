@@ -179,7 +179,7 @@ export function prepareRegistration({ dir, deps }, args = {}) {
       `Check that the signing address on the form is exactly ${account.address}. If it differs, do not create the Hive.`,
       'Review the name, description, category, venue and the Amount per Call (what each Call stakes). Add a description if it is empty.',
       'Enter the Total budget (the most the bot may have at risk across its Calls) and allow the bot to trade. You can change both amounts later in Studio.',
-      'Press Create bot Hive yourself. A bot Hive has no agreement checkbox.',
+      'Press Create bot Hive yourself. The only checkbox on the form is the one that allows the bot; there are no Terms to accept there.',
       'Tell your agent when it is done; it will look up the new Hive with check_registration.',
     ],
     note: 'Nothing was submitted. Only the person can create the Hive.' };
@@ -335,11 +335,16 @@ export function dryRun({ dir, env = process.env, node = process.execPath, timeou
 
 const object = (properties = {}, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const environmentProp = { type: 'string', enum: ['prod', 'dev'], description: 'HiveTrade environment. Defaults to BOT_API_URL in .env, else prod.' };
+// MCP's readOnlyHint, only on tools that change nothing in the bot folder.
+// Clients that ask before write-capable tools (Hermes with trust: untrusted)
+// then ask only before the others. prepare_registration is not read-only: it
+// saves the chosen environment to .env.
+const readOnly = { readOnlyHint: true };
 export const TOOLS = [
   { name: 'get_setup_status', description: 'Which setup steps are done for the bot in this folder: kit, dependencies, signing identity (public address only), Hive ID, venue, market, live trading flag (and an older bot\'s Polymarket deposit wallet). Never returns secrets.', inputSchema: object(),
-    run: ctx => setupStatus(ctx) },
+    annotations: readOnly, run: ctx => setupStatus(ctx) },
   { name: 'get_signing_key_command', description: 'The command the PERSON runs in their own terminal to create the bot\'s signing key (npm run setup), and what to tell them. Creates nothing. Never run that command yourself. If the key exists, returns only its public address.', inputSchema: object({ environment: environmentProp }),
-    run: (ctx, args) => signingKeyCommand(ctx, args) },
+    annotations: readOnly, run: (ctx, args) => signingKeyCommand(ctx, args) },
   { name: 'update_settings', description: 'Change public bot settings in .env (market, venue, example or STRATEGY_* values) so you never open .env. The amount each Call stakes is not a .env setting: it is the Amount per Call on the Hive, set in HiveTrade. Refuses the key, the live-trading switch, the Hive ID and the API.',
     inputSchema: object({ settings: { type: 'object', description: `Keys: ${SETTABLE_KEYS.join(', ')}`, additionalProperties: { type: ['string', 'number'] } } }, ['settings']),
     run: (ctx, args) => updateSettings(ctx, args) },
@@ -354,14 +359,14 @@ export const TOOLS = [
   { name: 'set_hive_id', description: 'Write BOT_HIVE_ID to .env. Use when the person reads the Hive ID from the page and the automatic lookup is unavailable.', inputSchema: object({ hiveId: { type: 'integer', minimum: 1 } }, ['hiveId']),
     run: (ctx, args) => setHiveId(ctx, args) },
   { name: 'get_bot_status', description: 'Confirms the bot\'s Hive with requests signed by its key (works for a Private Hive): name, venue, Amount per Call, open Calls, paused. Adds member count and last Call when the Hive is public.', inputSchema: object({ environment: environmentProp }),
-    run: (ctx, args) => botStatus(ctx, args) },
+    annotations: readOnly, run: (ctx, args) => botStatus(ctx, args) },
   { name: 'find_market', description: 'Turn a polymarket.com link (or slug) into the exact MARKET_SLUG. An event link with many markets returns the list; the person picks one. Public read-only lookup. Never suggest or rank markets.',
     inputSchema: object({ link: { type: 'string', description: 'polymarket.com/event/... link, or a slug' } }, ['link']),
-    run: (ctx, args) => findPolymarketMarket(args.link, ctx.request ? { request: ctx.request } : {}) },
+    annotations: readOnly, run: (ctx, args) => findPolymarketMarket(args.link, ctx.request ? { request: ctx.request } : {}) },
   { name: 'list_strategies', description: 'Where the strategy goes and the generic example ideas in this kit.', inputSchema: object(),
-    run: () => listStrategies() },
+    annotations: readOnly, run: () => listStrategies() },
   { name: 'get_deploy_guide', description: 'How to host the bot (scheduled previews on Railway) and who handles the key on a server.', inputSchema: object(),
-    run: () => deployGuide() },
+    annotations: readOnly, run: () => deployGuide() },
   { name: 'dry_run', description: 'Run the bot once with live trading forced off and no key. Returns the tail of its output with anything key-like hidden.', inputSchema: object(),
     run: ctx => dryRun(ctx) },
 ];

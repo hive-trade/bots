@@ -16,8 +16,9 @@ In Claude Code, install the plugin:
 
 It bundles two skills (`hivetrade-bot` for setup, `hivetrade-deploy` for Railway
 hosting) and a local MCP server, `hivetrade-bot`, with the eleven tools listed
-below. Then ask your agent to "set up my HiveTrade bot". Other agents can use the
-same server, see [Other MCP clients](#other-mcp-clients).
+below. Then ask your agent to "set up my HiveTrade bot". Hermes Agent takes the
+same server and skill with two commands, see [Hermes Agent](#hermes-agent). Other
+agents can use the same server, see [Other MCP clients](#other-mcp-clients).
 
 ## Who does what
 
@@ -104,6 +105,13 @@ No tool creates or writes `BOT_PRIVATE_KEY`, and tools read `.env` only through
 helpers that leave the key out or expose just the public address. Any tool output that looks like a private key
 is refused rather than returned.
 
+The six tools that change nothing in the bot folder carry MCP's read-only mark
+(`readOnlyHint`): `get_setup_status`, `get_signing_key_command`, `get_bot_status`,
+`find_market`, `list_strategies` and `get_deploy_guide`. A client that asks before
+tools that can change things, such as Hermes with `trust: untrusted`, then asks
+only before the other five. `prepare_registration` is not marked because it saves
+the chosen environment to `.env`.
+
 ## Registration protocol
 
 For people building their own client. The bot proves it controls its signing
@@ -187,6 +195,41 @@ exact signing address each time, by pressing Create yourself.
   time and try again.
 - **"is not a copy of the bot kit".** Clone `https://github.com/hive-trade/bots`
   into the folder (or set `HIVETRADE_BOT_DIR`) and run `npm ci`.
+
+## Hermes Agent
+
+Clone the kit and install it first, because the server runs from that folder:
+
+```bash
+git clone https://github.com/hive-trade/bots.git my-bot
+cd my-bot
+npm ci
+```
+
+From inside the folder, add the server. When Hermes asks to enable its eleven
+tools, press Enter:
+
+```bash
+hermes mcp add hivetrade-bot --command node --env HIVETRADE_BOT_DIR="$PWD" --args "$PWD/mcp/server.mjs"
+```
+
+Then add the setup skill. Hermes asks you to confirm a third-party skill; type `y`
+(pressing Enter cancels):
+
+```bash
+hermes skills install hive-trade/bots/skills/hivetrade-bot
+```
+
+Start Hermes in the bot folder and ask it to "set up my HiveTrade bot".
+
+- `hermes mcp test hivetrade-bot` checks the connection. It lists the eleven tools.
+- To have Hermes ask before each tool that writes to the bot folder or runs the
+  bot, add `trust: untrusted` to the `hivetrade-bot` entry under `mcp_servers` in
+  `~/.hermes/config.yaml`. The six read-only tools still run without asking.
+- For guided Railway hosting, install the second skill the same way:
+  `hermes skills install hive-trade/bots/skills/hivetrade-deploy`.
+
+Tested with Hermes v0.23.1.
 
 ## Other MCP clients
 

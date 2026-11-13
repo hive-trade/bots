@@ -20,6 +20,18 @@ test('no doc tells anyone to tick an agreement, import the key into a wallet, or
     assert.doesNotMatch(text, /hivetrade-docs\.vercel\.app/, file);
   }
 });
+test('Hermes loads the skills and AGENTS.md: no wording its scanners block', () => {
+  // On these two shapes Hermes blocks the skill install, and drops the whole of
+  // AGENTS.md from its context. deception_hide: "do not ... tell the user" reads
+  // as hiding something; state the fact instead. read_secrets: "cat" followed,
+  // on the same line, by .env or another credentials file reads as reading a
+  // secret; that rule is critical for a skill, so even --force cannot install it.
+  for (const file of ['skills/hivetrade-bot/SKILL.md', 'skills/hivetrade-deploy/SKILL.md', 'AGENTS.md']) {
+    const text = read(file);
+    assert.doesNotMatch(text, /do\s+not\s+(?:\w+\s+)*tell\s+(?:\w+\s+)*the\s+user/i, `${file}: deception_hide`);
+    assert.doesNotMatch(text, /cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)/i, `${file}: read_secrets`);
+  }
+});
 test('the agent hard rules about .env and setup are in AGENTS.md and the skill', () => {
   assert.match(read('AGENTS.md'), /never read, cat, grep, open or print \.env/i);
   assert.match(read('skills/hivetrade-bot/SKILL.md'), /Never read, cat, grep, open or print `\.env`/);
