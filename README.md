@@ -382,7 +382,7 @@ guards to make it run.
 - [Recovery and verification](docs/recovery.md)
 
 Compatibility checked against HiveTrade's current API contract on 2026-11-19,
-for all three exchanges: Polymarket (`pm-op-v1`), Polymarket US (`pmus-v1`) and
+for every exchange: Polymarket (`pm-op-v1`), Polymarket US (`pmus-v1`) and
 Kalshi (`kalshi-v2`).
 Offline tests and dry runs do not certify a funded live account. Report an issue
 with redacted configuration and an error stage; never attach keys or full SDK logs.
