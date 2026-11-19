@@ -6,8 +6,9 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 
 test('the README prompt asks for the market, keeps the key with the person, and forbids strategy advice', () => {
   // Must stay identical to the HiveTrade docs prompt (docs.hivetrade.com/run-a-bot/one-prompt).
-  const prompt = read('README.md').match(/```text\n(Set up my own HiveTrade bot[\s\S]*?)```/)[1];
-  for (const phrase of ['my own trading\n   rule in my own words', 'the exact market it trades', 'I will run it myself', 'Never run it yourself, never\n   open .env',
+  // Whitespace-insensitive: rewrapping a line must not hide a missing phrase.
+  const prompt = read('README.md').match(/```text\n(Set up my own HiveTrade bot[\s\S]*?)```/)[1].replace(/\s+/g, ' ');
+  for (const phrase of ['Polymarket, Polymarket US or Kalshi', 'my own trading rule in my own words', 'the exact market it trades', 'I will run it myself', 'Never run it yourself, never open .env',
     'Implement exactly my rule', 'decision trace', 'Do not suggest, rank or improve strategies or markets', 'Never turn on real trading unless I clearly ask you to.']) {
     assert.ok(prompt.includes(phrase), phrase);
   }

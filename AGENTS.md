@@ -20,6 +20,10 @@ preference. A Call carries no amount: the bot sends the market, the side and a
 price cap, and each Call stakes the Amount per Call set on the Hive, within its
 Total budget. Both are set on the Hive at Create and editable in Studio, never
 in .env. Explain the example's limitations.
+Polymarket US (`VENUE=polymarket_us`, a separate exchange from Polymarket):
+`MARKET_SLUG` is a Polymarket US market slug (`npm run find-market -- <polymarket.us link>`,
+or `-- --us <slug>`); the person connects their own Polymarket US account in
+HiveTrade Settings with an API key they create there, and you never see it.
 Kalshi: only markets in the series listed at https://docs.hivetrade.com/run-a-bot/kalshi
 work (copied in lib/kalshi-markets.mjs); use KALSHI_SERIES for a series whose
 markets close quickly. Do not invent general venue
@@ -40,7 +44,7 @@ support, automatic withdrawals, redemption, profitability or daily platform caps
    and presses Create; you never submit it. Bot Hives have no agreement checkbox. Then read the Hive
    ID with the signed lookup (MCP `check_registration`); if the API lacks it, ask
    for the ID the page showed (`set_hive_id`). The manual form is the fallback.
-   The user performs account consent and the Kalshi key connection. A new
+   The user performs account consent and the Kalshi or Polymarket US key connection. A new
    Polymarket bot trades from the user's own HiveTrade account: the bot only
    signs the Call and HiveTrade places the order. The user sets the Hive's
    Amount per Call and Total budget and allows the bot to trade in HiveTrade

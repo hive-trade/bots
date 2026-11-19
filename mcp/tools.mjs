@@ -11,7 +11,7 @@ import { existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { readPublicSettings, botSigner, updateEnv, envPath, isSettable, SETTABLE_KEYS } from './env-file.mjs';
 import { loadDeps } from './deps.mjs';
-import { findPolymarketMarket } from '../lib/find-market.mjs';
+import { findMarket } from '../lib/find-market.mjs';
 
 export const ENVIRONMENTS = {
   prod: { api: 'https://api.hivetrade.com', web: 'https://app.hivetrade.com' },
@@ -64,7 +64,14 @@ function hiveIdOf(value) {
 // budget for the bot and allowing it to trade. Older bots with their own
 // deposit wallet set POLYMARKET_LEGACY_SELF_MANAGED=true (the person's choice).
 const POLYMARKET_OWNER_STEP = 'New Polymarket bots trade from the person\'s own HiveTrade account: the bot only signs the Call and HiveTrade places the order there. Before live trading the person, in HiveTrade, sets the bot\'s Amount per Call (what each Call stakes) and Total budget and allows the bot to trade (in Studio, or while creating the Hive), with funds in their own HiveTrade account. The bot sends no amount. Never tell the person to fund a bot address, sign in to Polymarket as the bot, or import the bot\'s key into a wallet app.';
+// Polymarket US bots (pmus-v1): the bot only signs the Call and HiveTrade
+// places the order in the person's own Polymarket US account, with the key the
+// person connects in HiveTrade Settings themselves.
+const POLYMARKET_US_OWNER_STEP = 'Polymarket US bots trade from the person\'s own Polymarket US account: the bot only signs the Call and HiveTrade places the order there. Before live trading the person, in HiveTrade, connects their Polymarket US account in Settings with an API key they create at Polymarket US (they enter it themselves; it never goes in chat or .env), sets the bot\'s Amount per Call and Total budget and allows the bot to trade, with funds in their own Polymarket US account. The bot sends no amount and holds no Polymarket US key.';
+const VENUES = ['polymarket', 'polymarket_us', 'kalshi'];
 const legacyPolymarket = env => env.POLYMARKET_LEGACY_SELF_MANAGED === 'true';
+const ownerStep = (venue, env) => venue === 'polymarket' && !legacyPolymarket(env) ? { polymarketLiveTrading: POLYMARKET_OWNER_STEP }
+  : venue === 'polymarket_us' ? { polymarketUsLiveTrading: POLYMARKET_US_OWNER_STEP } : {};
 async function readJson(response) {
   try { return await response.json(); } catch { return null; }
 }
@@ -89,6 +96,7 @@ export function setupStatus({ dir, deps }) {
       if (legacyPolymarket(env)) status.polymarketDepositWallet = ADDRESS.test(env.POLYMARKET_DEPOSIT_WALLET ?? '') ? env.POLYMARKET_DEPOSIT_WALLET : null;
       status.market = env.MARKET_SLUG || null;
     }
+    if (env.VENUE === 'polymarket_us') status.market = env.MARKET_SLUG || null;
     if (env.VENUE === 'kalshi') status.market = env.KALSHI_TICKER || (env.KALSHI_SERIES ? `series ${env.KALSHI_SERIES} (the market open right now)` : null);
     status.liveTradingEnabled = env.BOT_LIVE_TRADING_ENABLED ?? 'false (unset)';
   }
@@ -99,6 +107,7 @@ export function setupStatus({ dir, deps }) {
     : !status.hiveId ? 'Create the Hive: prepare_registration, then check_registration once the person pressed Create.'
     : !status.market ? 'Choose the exact market (KALSHI_TICKER or MARKET_SLUG) and implement the strategy, then dry_run.'
     : env.VENUE === 'polymarket' && !legacyPolymarket(env) ? `Run the tests and dry_run. ${POLYMARKET_OWNER_STEP} Live trading stays off until the person decides otherwise.`
+    : env.VENUE === 'polymarket_us' ? `Run the tests and dry_run. ${POLYMARKET_US_OWNER_STEP} Live trading stays off until the person decides otherwise.`
     : 'Run the tests and dry_run. Live trading stays off until the person decides otherwise.';
   return status;
 }
@@ -143,7 +152,7 @@ export function prepareRegistration({ dir, deps }, args = {}) {
   if (name.length < 3 || name.length > 40) throw new Error('name must be 3 to 40 characters');
   const bio = typeof args.bio === 'string' ? args.bio.trim() : '';
   if (bio.length > 500) throw new Error('bio must be at most 500 characters');
-  if (!['polymarket', 'kalshi'].includes(args.venue)) throw new Error('venue must be "polymarket" or "kalshi"');
+  if (!VENUES.includes(args.venue)) throw new Error('venue must be "polymarket", "polymarket_us" or "kalshi"');
   const environment = pickEnvironment(args.environment, env);
   const params = new URLSearchParams({ name });
   if (bio) params.set('bio', bio);
@@ -177,6 +186,7 @@ export function prepareRegistration({ dir, deps }, args = {}) {
     instructions: [
       'Open the link in the browser where you are signed in to HiveTrade (sign in first if asked; the form stays filled).',
       `Check that the signing address on the form is exactly ${account.address}. If it differs, do not create the Hive.`,
+      ...(args.venue === 'polymarket_us' ? ['Choose Polymarket US as the exchange on the form if it is not already selected. Connect your Polymarket US account in HiveTrade Settings first if the form asks for it.'] : []),
       'Review the name, description, category, venue and the Amount per Call (what each Call stakes). Add a description if it is empty.',
       'Enter the Total budget (the most the bot may have at risk across its Calls) and allow the bot to trade. You can change both amounts later in Studio.',
       'Press Create bot Hive yourself. The only checkbox on the form is the one that allows the bot; there are no Terms to accept there.',
@@ -196,7 +206,7 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
   const body = await readJson(response);
   if (response.status === 200) {
     const hiveId = hiveIdOf(body?.hiveId);
-    const venue = ['polymarket', 'kalshi'].includes(body?.venue) ? body.venue : null;
+    const venue = VENUES.includes(body?.venue) ? body.venue : null;
     const previous = { hiveId: env.BOT_HIVE_ID || null, venue: env.VENUE || null };
     const updates = { BOT_HIVE_ID: String(hiveId), BOT_API_URL: api };
     // The Hive is bound to one venue; the template's default must follow it.
@@ -206,7 +216,7 @@ export async function checkRegistration({ dir, deps, fetch = globalThis.fetch, n
     if (previous.hiveId && previous.hiveId !== String(hiveId)) changed.push(`BOT_HIVE_ID was ${previous.hiveId}`);
     if (venue && previous.venue && previous.venue !== venue) changed.push(`VENUE was ${previous.venue}`);
     return { registered: true, environment, hiveId, name: body?.name ?? null, handle: body?.handle ?? null, venue,
-      ...(venue === 'polymarket' && !legacyPolymarket(env) ? { polymarketLiveTrading: POLYMARKET_OWNER_STEP } : {}),
+      ...ownerStep(venue, env),
       wroteToEnv: Object.keys(updates), ...(changed.length ? { replaced: changed } : {}) };
   }
   if (response.status === 404 && body?.code === 'BOT_NOT_REGISTERED') {
@@ -260,7 +270,7 @@ export async function botStatus({ dir, deps, fetch = globalThis.fetch, now = Dat
     paused: typeof budget.body.paused === 'boolean' ? budget.body.paused : null, page: `${web}/hive/${hiveId}` };
   const who = await signedRead({ api, path: '/api/bot/whoami', message: 'hivetrade:bot-whoami', account, fetch, now }).catch(() => null);
   if (who?.status === 200) Object.assign(status, { name: who.body?.name ?? null, handle: who.body?.handle ?? null, venue: who.body?.venue ?? null });
-  if ((status.venue ?? env.VENUE) === 'polymarket' && !legacyPolymarket(env)) status.polymarketLiveTrading = POLYMARKET_OWNER_STEP;
+  Object.assign(status, ownerStep(status.venue ?? env.VENUE, env));
   // Public page data is extra. A Private Hive is not public, and that is expected.
   const response = await fetch(`${api}/api/hives/${hiveId}`, { redirect: 'error', signal: AbortSignal.timeout(30000) }).catch(() => null);
   if (response?.ok) {
@@ -287,7 +297,7 @@ export function listStrategies() {
     'The example rule\'s tests are in test/example-strategy.test.mjs: replace that file with tests for the new rule. The other test files test the kit and never load strategy.mjs.',
     'The included rule is an educational price limit (EXAMPLE_SIDE + EXAMPLE_MAX_PRICE). It has no predictive edge.',
     'Read strategy-playbook.md for generic ideas (price limit, your own probability estimate versus the ask, observation-only) and what to decide first: exact market, resolution source, data freshness, price limit, budget, failure behavior.',
-    'Entry points: bot.mjs (shared runner), examples/bot-starter/bot.mjs (Polymarket), examples/kalshi-bot-starter/ (Kalshi). Kalshi markets: the series HiveTrade\'s bot API accepts are listed at https://docs.hivetrade.com/run-a-bot/kalshi (copied in lib/kalshi-markets.mjs). Set KALSHI_TICKER for one fixed market, or KALSHI_SERIES to use the market of that series open right now (only when exactly one is open).',
+    'Entry points: bot.mjs (shared runner), examples/bot-starter/bot.mjs (Polymarket), examples/kalshi-bot-starter/ (Kalshi). Polymarket US uses bot.mjs with VENUE=polymarket_us and MARKET_SLUG set to a Polymarket US market slug (npm run find-market -- <polymarket.us link>). Kalshi markets: the series HiveTrade\'s bot API accepts are listed at https://docs.hivetrade.com/run-a-bot/kalshi (copied in lib/kalshi-markets.mjs). Set KALSHI_TICKER for one fixed market, or KALSHI_SERIES to use the market of that series open right now (only when exactly one is open).',
     'Keep execution code separate from the strategy, and add tests for stale or missing data. HiveTrade\'s own production strategies are private and not part of this kit.',
   ].join('\n');
 }
@@ -350,7 +360,7 @@ export const TOOLS = [
     run: (ctx, args) => updateSettings(ctx, args) },
   { name: 'prepare_registration', description: 'Build a pre-filled "Create a bot Hive" link for this bot\'s signing address. The person opens it, checks the address and presses Create. Submits nothing.',
     inputSchema: object({ name: { type: 'string', description: '3 to 40 characters' }, bio: { type: 'string', description: 'Up to 500 characters' },
-      category: { type: 'string', enum: CATEGORIES }, venue: { type: 'string', enum: ['polymarket', 'kalshi'] },
+      category: { type: 'string', enum: CATEGORIES }, venue: { type: 'string', enum: VENUES },
       amountPerCallUsd: { type: 'number', minimum: 1, maximum: 100, description: 'Amount per Call in USD: what each Call stakes. The person sets the Total budget on the form.' },
       environment: environmentProp }, ['name', 'venue']),
     run: (ctx, args) => prepareRegistration(ctx, args) },
@@ -360,9 +370,11 @@ export const TOOLS = [
     run: (ctx, args) => setHiveId(ctx, args) },
   { name: 'get_bot_status', description: 'Confirms the bot\'s Hive with requests signed by its key (works for a Private Hive): name, venue, Amount per Call, open Calls, paused. Adds member count and last Call when the Hive is public.', inputSchema: object({ environment: environmentProp }),
     annotations: readOnly, run: (ctx, args) => botStatus(ctx, args) },
-  { name: 'find_market', description: 'Turn a polymarket.com link (or slug) into the exact MARKET_SLUG. An event link with many markets returns the list; the person picks one. Public read-only lookup. Never suggest or rank markets.',
-    inputSchema: object({ link: { type: 'string', description: 'polymarket.com/event/... link, or a slug' } }, ['link']),
-    annotations: readOnly, run: (ctx, args) => findPolymarketMarket(args.link, ctx.request ? { request: ctx.request } : {}) },
+  { name: 'find_market', description: 'Turn a polymarket.com or polymarket.us link (or slug) into the exact MARKET_SLUG. An event link with many markets returns the list; the person picks one. Public read-only lookup, one request at a time. Never suggest or rank markets.',
+    inputSchema: object({ link: { type: 'string', description: 'polymarket.com/event/... or polymarket.us/event/... link, or a slug' },
+      venue: { type: 'string', enum: ['polymarket', 'polymarket_us'], description: 'Exchange for a bare slug. Defaults to VENUE in .env; a polymarket.us link is always Polymarket US.' } }, ['link']),
+    annotations: readOnly, run: (ctx, args) => findMarket(args.link, { venue: args.venue ?? (ctx.dir ? readPublicSettings(ctx.dir)?.VENUE : undefined),
+      ...(ctx.request ? { request: ctx.request } : {}) }) },
   { name: 'list_strategies', description: 'Where the strategy goes and the generic example ideas in this kit.', inputSchema: object(),
     annotations: readOnly, run: () => listStrategies() },
   { name: 'get_deploy_guide', description: 'How to host the bot (scheduled previews on Railway) and who handles the key on a server.', inputSchema: object(),

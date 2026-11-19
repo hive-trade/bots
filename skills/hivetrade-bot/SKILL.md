@@ -38,12 +38,14 @@ on when it passes. If a check fails, explain what is missing in plain words.
 Ask, reusing anything already said:
 1. Venue: **Kalshi** (shorter: HiveTrade executes with the user's connected Kalshi
    key; only markets in the series listed at docs.hivetrade.com/run-a-bot/kalshi,
-   set as `KALSHI_TICKER` or, for fast series like `KXBTC15M`, `KALSHI_SERIES`) or **Polymarket**
+   set as `KALSHI_TICKER` or, for fast series like `KXBTC15M`, `KALSHI_SERIES`), **Polymarket**
    (the bot signs the Call and HiveTrade places the order in the user's own
-   HiveTrade account).
+   HiveTrade account) or **Polymarket US** (`VENUE=polymarket_us`, a separate
+   exchange: HiveTrade places the order in the user's own Polymarket US account,
+   which the user connects in HiveTrade Settings with a key they create there).
 2. Bot name (3 to 40 characters), a one-line description, and a category.
 3. The user's own rule in their words, and the exact market (a link is fine).
-   For Polymarket, run `find_market` (or `npm run find-market -- <link>`): an
+   For Polymarket or Polymarket US, run `find_market` (or `npm run find-market -- <link>`): an
    event link can hold many markets; show the list and let the user pick. Tell
    them the market's end date as a fact. Never suggest, rank or choose a market.
 4. Two amounts, both set on the Hive (at Create, editable in Studio), never in

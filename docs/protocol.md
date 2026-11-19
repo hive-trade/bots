@@ -151,6 +151,120 @@ never holds that credential, places a second order, or posts a fill report. An
 `accepted: true` response is distinct from `captainFill.filled: true`. Unknown
 outcomes require checking the Hive and venue account.
 
+## Polymarket US (`pmus-v1`)
+
+Polymarket US is a separate exchange from Polymarket, with its own accounts and
+its own market slugs. A Polymarket US bot works like a Kalshi bot: it only signs
+the Call (market, side and a price cap, with **no amount**), and HiveTrade places
+the Captain order in the Hive owner's own Polymarket US account, staking the
+Hive's Amount per Call within the Total budget the owner set. The runner holds
+no Polymarket US key, places no order and posts no fill report.
+
+**Prerequisites**, all done by the Hive owner in HiveTrade, never by the bot:
+
+- The bot Hive is created with **Polymarket US** as its exchange. Polymarket US
+  bot Hives always trade from the owner's own account; on an environment where
+  that is not switched on, creating one is refused with
+  `409 BOT_OPERATOR_MODEL_REQUIRED`.
+- The owner's own Polymarket US account is connected in HiveTrade **Settings**,
+  with an API key the owner creates at Polymarket US and enters there
+  themselves. That key never goes in `.env`, in chat or in the bot.
+- The Hive's Amount per Call and Total budget are set, and the bot is allowed to
+  trade (while creating the Hive, or later in Studio). The money is in the
+  owner's own Polymarket US account.
+
+There is no mode check: the runner does not call `GET /api/bot/config` on this
+path. HiveTrade checks every prerequisite when the signal arrives and answers a
+skip code when one is missing.
+
+`POST /api/bot/signal` with `{ signal, signature }`. The signal contains
+`hiveId`, `venue: "polymarket_us"`, `polymarketUsSlug`, `side`, `signalStrength`
+(always `100`), `limitPrice`, `execution: "hivetrade-v1"`, `nonce`, `issuedAt`,
+and `intent: true`. No `stakeUsd`, no `conditionId`, no Kalshi field, no
+`orderType`, `signedOrder` or `fillResult`: any of them is refused
+(`400 PMUS_SIGNAL_MALFORMED`).
+
+- `polymarketUsSlug` is the Polymarket US **market** slug (lower-case letters,
+  digits and dashes), not the event slug. A `polymarket.us/event/<event>` page
+  can hold many markets: `npm run find-market -- <polymarket.us link>` lists
+  them, and `npm run find-market -- --us <slug>` checks one slug.
+- `limitPrice` is the most the Captain order, and so every Member's copy, may pay
+  per contract, in the traded side's own price space: a NO limit is a NO price,
+  never 1 minus a YES price. Strictly between 0 and 1, at most 4 decimals. The
+  example rounds your strategy's `maxPrice` down to the market's price step
+  (`orderPriceMinTickSize`); HiveTrade also floors it onto that step.
+
+The signed message is:
+
+```text
+HiveTrade bot signal pmus-v1
+hive:<hiveId>
+venue:polymarket_us
+market:<polymarketUsSlug>
+side:<yes|no>
+signal:100
+limitPrice:<limitPrice>
+execution:hivetrade-v1
+nonce:<nonce>
+issuedAt:<issuedAt>
+intent:true
+```
+
+A signal that sets the optional `positionDisclosure` field (`holds`, `intends`
+or `none`; the example does not) signs one more line, `position:<value>`, right
+before `nonce:`. `test/polymarket-us.test.mjs` pins these bytes, and their
+signature, to the ones HiveTrade's own `botSignalMessage` builds.
+
+Answers:
+
+- `201 { accepted: true, id, marketId, venue: "polymarket_us", polymarketUsSlug,
+  captainFill, captainFailure, fanout }`: the Call was made. An accepted Call is
+  not a claim of a fill: check the Hive for the outcome.
+- `200 { accepted: false, skipped: true, code }`: HiveTrade skipped the Call and
+  wrote nothing. A skip does not use up the nonce, so the same signal may be sent
+  again while it is fresh. Codes include:
+  - `POLYMARKET_US_BOT_CAPTAIN_CREDENTIAL_UNAVAILABLE`: no usable Polymarket US
+    key is connected for the Hive owner. `POLYMARKET_US_BOT_CAPTAIN_KEY_UNREADABLE`:
+    HiveTrade could not read the stored key.
+  - `BOT_OPERATOR_CONSENT_REQUIRED`: the bot is not allowed to trade for the
+    current Amount per Call and Total budget. `BOT_AMOUNT_PER_CALL_UNAVAILABLE`:
+    no usable Amount per Call. `BOT_TOTAL_BUDGET_REACHED`, `OPERATOR_CAPACITY_SHORT`,
+    `OPERATOR_CAPACITY_UNAVAILABLE`: the Total budget, or the owner's cash outside
+    every other budget, does not cover the Call.
+  - `POLYMARKET_US_BOT_OPERATOR_REQUIRED`: the Hive has no owner account to trade
+    from. `BOT_OPERATOR_INELIGIBLE`, `TRADING_PAUSED`, `HIVE_PAUSED`, `BOT_PAUSED`,
+    `POLYMARKET_US_OPERATOR_GATE_UNAVAILABLE`: the owner's account or the Hive
+    cannot trade right now.
+  - `POLYMARKET_US_MARKET_NOT_FOUND`, `POLYMARKET_US_MARKET_CLOSED`,
+    `POLYMARKET_US_MARKET_UNSUPPORTED`: the market slug is unknown, the market is
+    closed, or its price step or contract size is one HiveTrade does not trade.
+  - `POLYMARKET_US_BOT_PRICE_MOVED`: the side's live ask is above your
+    `limitPrice`, or there is none. `POLYMARKET_US_BOT_AMOUNT_BUYS_NOTHING`: the
+    Amount per Call buys less than one contract step at that price.
+  - `POLYMARKET_US_EXCHANGE_PAUSED`: the exchange's weekly maintenance window
+    (Thursday, 6:00 to 8:00 AM ET, from one minute before). `POLYMARKET_US_DISABLED`,
+    `POLYMARKET_US_UNAVAILABLE`, `POLYMARKET_US_BOT_CAPTAIN_UNRESOLVED`: HiveTrade
+    cannot trade on Polymarket US right now.
+
+  Treat any other `code` the same way: nothing was placed for this signal.
+- `409 CALL_ALREADY_OPEN` (with the open Call's `id`): the Hive already has an
+  open Call on this market. `423 BOT_PAUSED`: the owner paused the bot. `401`: a
+  stale, future-dated, replayed or badly signed signal. `400`: a malformed signal,
+  or a Hive that is not a Polymarket US bot Hive.
+
+A timeout is ambiguous: do not resend. HiveTrade may already have placed it. The
+example keeps the journal entry unresolved, as on every other path.
+
+**Market data** comes from the public gateway, `https://gateway.polymarket.us`,
+with no key: `GET /v1/market/slug/<slug>` (`{ market }`),
+`GET /v1/markets/<slug>/book` (`{ marketData: { bids, offers, state } }`) and
+`GET /v1/events/slug/<event>` (`{ event: { markets } }`). Every price the
+gateway returns is a YES price: the NO ask is 1 minus the best YES bid. Do not
+read a market's `outcomes` or `outcomePrices`; their order is not fixed. The
+gateway answers HTTP 429 to bursts (about seven reads in a second), so
+`lib/polymarket-us.mjs` reads one request at a time, never in parallel, and
+retries a 429 twice after a pause.
+
 ## Compatibility
 
 Tests cover fixed wire vectors and example behavior. Integration code uses the
