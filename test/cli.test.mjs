@@ -107,7 +107,7 @@ test('a stop names the setting to fix and mentions the journal only when there i
   const dir = mkdtempSync(join(tmpdir(), 'hivetrade-errors-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const cases = [
-    [{ VENUE: '' }, /VENUE must be polymarket or kalshi/],
+    [{ VENUE: '' }, /VENUE must be polymarket, polymarket_us or kalshi/],
     [{ VENUE: 'polymarket', BOT_HIVE_ID: 'abc' }, /BOT_HIVE_ID must be a whole number/],
     [{ VENUE: 'polymarket', BOT_LIVE_TRADING_ENABLED: 'true' }, /BOT_HIVE_ID is not set\. Real trading needs it/],
     [{ VENUE: 'polymarket', POLYMARKET_LEGACY_SELF_MANAGED: 'true', MAX_STAKE_USD: '-1' }, /MAX_STAKE_USD must be a number above 0/],

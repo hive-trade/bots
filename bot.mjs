@@ -3,6 +3,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { config, positive } from './lib/config.mjs';
 import { jsonRequest, readBotConfig, PM_OP_EXECUTION } from './lib/protocol.mjs';
 import { discoverPolymarket, operatorLimitPrice, preparePolymarket } from './lib/polymarket.mjs';
+import { discoverPolymarketUs, pmusLimitPrice } from './lib/polymarket-us.mjs';
 import { strategy } from './strategy.mjs';
 import { execute } from './lib/run.mjs';
 import { SafeError, stopMessage } from './lib/errors.mjs';
@@ -23,6 +24,7 @@ async function main() {
   stage = 'public market lookup';
   let market;
   if (cfg.venue === 'polymarket') market = await discoverPolymarket(process.env.MARKET_SLUG);
+  else if (cfg.venue === 'polymarket_us') market = await discoverPolymarketUs(process.env.MARKET_SLUG);
   else {
     const series = process.env.KALSHI_SERIES ?? '';
     let ticker = process.env.KALSHI_TICKER ?? '';
@@ -73,6 +75,11 @@ async function main() {
     const cents = Math.floor((decision.maxPrice + 1e-12) * 100);
     if (cents < 1) throw new SafeError('Your strategy\'s maxPrice is under one cent, the lowest Kalshi price.');
     signal = { ...signal, execution: 'hivetrade-v1', kalshiTicker: market.ticker, kalshiPriceCents: cents };
+  } else if (cfg.venue === 'polymarket_us') {
+    // Polymarket US bots sign a pmus-v1 Call: HiveTrade places the order in
+    // your own Polymarket US account, with the key you connected in Settings.
+    // The price cap is your maxPrice on the market's price step.
+    signal = { ...signal, execution: 'hivetrade-v1', polymarketUsSlug: market.slug, limitPrice: pmusLimitPrice(market, decision) };
   } else if (cfg.legacySelfManaged) {
     // LEGACY: an older bot buys from its own wallet, so it still signs a stake.
     signal = { ...signal, conditionId: market.conditionId, stakeUsd: cfg.stake, orderType: 'marketable' };
@@ -82,7 +89,7 @@ async function main() {
     // your own HiveTrade account (limitPrice is added at live time).
     signal = { ...signal, conditionId: market.conditionId, execution: PM_OP_EXECUTION };
   }
-  console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: decision.maxPrice,
+  console.log(JSON.stringify({ mode: cfg.live ? 'LIVE' : 'DRY RUN', market: market.id, side: decision.side, priceCap: signal.limitPrice ?? decision.maxPrice,
     ...(cfg.legacySelfManaged ? { stakeUsd: signal.stakeUsd } : { amount: 'the Amount per Call set on your Hive' }) }));
   if (!cfg.live) return; // No signer, auth, intent, order or fill submission in dry run.
   stage = 'signer and Hive preflight';

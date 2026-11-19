@@ -4,8 +4,8 @@ Give this repository to your AI coding agent. It contains an educational example
 setup tools, and the public integration code needed to publish Calls from **your
 own strategy**. HiveTrade's production strategies and their tuning are not included.
 
-HiveTrade is signal-sharing software for Polymarket and Kalshi. Trades execute in
-participants' own venue accounts. Trading fees apply.
+HiveTrade is signal-sharing software for Polymarket, Polymarket US and Kalshi.
+Trades execute in participants' own venue accounts. Trading fees apply.
 
 ## Paste this into your agent
 
@@ -16,10 +16,11 @@ Codex, Cursor, Hermes Agent). Step-by-step for beginners: https://docs.hivetrade
 Set up my own HiveTrade bot using https://github.com/hive-trade/bots.
 I'm new to this, so explain each step in plain words.
 1. Clone the repository into a new folder, then read README.md and AGENTS.md.
-2. Ask me a few questions: Polymarket or Kalshi, my bot's name, my own trading
-   rule in my own words, the exact market it trades (a link is fine), the
-   Amount per Call (what each Call stakes) and the Total budget for the Hive,
-   and whether it should run on this computer or on a server.
+2. Ask me a few questions: Polymarket, Polymarket US or Kalshi, my bot's
+   name, my own trading rule in my own words, the exact market it trades (a
+   link is fine), the Amount per Call (what each Call stakes) and the Total
+   budget for the Hive, and whether it should run on this computer or on a
+   server.
 3. Tell me the command that creates the bot's signing key. I will run it myself
    and give you only the public address it prints. Never run it yourself, never
    open .env, and never ask me for the private key.
@@ -68,7 +69,8 @@ In Claude Code without the plugin: `claude mcp add hivetrade-bot -- node mcp/ser
 5. **Agent:** reads the new Hive ID back with a request signed by the bot's key.
 6. **You:** on the Hive, set its **Amount per Call** (what each Call stakes) and
    its **Total budget**, when you create it or later in Studio. Kalshi: connect
-   your Kalshi API key and consent. Polymarket: allow the bot to trade (in
+   your Kalshi API key and consent. Polymarket US: connect your Polymarket US
+   account in Settings. Polymarket and Polymarket US: allow the bot to trade (in
    Studio, or while you create the Hive). The bot trades from your own HiveTrade
    account, so that account holds the money, not the bot.
 7. **You:** turn on live trading, only when you decide to.
@@ -191,7 +193,7 @@ Hive's Amount per Call does not set it.
 | Dev | `https://dev.hivetrade.com` | `https://api-dev.hivetrade.com` |
 
 **Dev is not play money.** The dev site places real orders with real funds on
-Polymarket and Kalshi, exactly like production. Use small amounts on both.
+Polymarket, Polymarket US and Kalshi, exactly like production. Use small amounts on each.
 
 A Hive exists on one environment only. Never mix them: the web site where you
 press Create and the bot's `BOT_API_URL` must be on the same row. An API rejection is a
@@ -264,6 +266,34 @@ per Call), because it buys from its own wallet
 goes away once every older bot has moved to your HiveTrade account; new bots
 never use it. Follow the venue's eligibility rules; a server does not change
 regional eligibility.
+
+### Polymarket US
+
+Polymarket US is a separate exchange from Polymarket: its own account, its own
+markets and its own market slugs. An account at one does not back a Hive on the
+other.
+
+1. Set `VENUE=polymarket_us` and `MARKET_SLUG` to an exact Polymarket US
+   **market** slug. A `polymarket.us/event/...` page can hold many markets:
+   `npm run find-market -- <polymarket.us link>` lists them, and
+   `npm run find-market -- --us <slug>` checks one slug (MCP tool
+   `find_market`). You can run dry runs before the Hive exists.
+2. Create the bot Hive with **Polymarket US** as its exchange.
+3. **Connect your own Polymarket US account in HiveTrade Settings**, with an
+   API key you create at Polymarket US. You enter it there yourself, in your own
+   browser; it never goes in `.env`, and your agent never sees it.
+4. **The bot trades from your own Polymarket US account.** The bot signs the
+   Call (the market, the side, and your strategy's `maxPrice` rounded down to
+   the market's price step as the price cap; no amount) and HiveTrade places the
+   order in your account, staking the Hive's **Amount per Call** within its
+   **Total budget**. Set both amounts and **allow the bot to trade** (in Studio,
+   or while you create the Hive). Your money stays in your Polymarket US
+   account; there is nothing to fund for the bot itself.
+
+The bot reads public Polymarket US market data, one request at a time (the
+exchange's public data service refuses bursts). It does not check a Hive mode
+first: if a step above is missing, HiveTrade skips the Call, places nothing,
+and the run prints the reason code ([the protocol](docs/protocol.md#polymarket-us-pmus-v1)).
 
 ## 4. Implement your idea and preview it
 
@@ -351,6 +381,8 @@ guards to make it run.
 - [Wire contract](docs/protocol.md)
 - [Recovery and verification](docs/recovery.md)
 
-Compatibility checked against HiveTrade's current API contract on 2026-09-15.
+Compatibility checked against HiveTrade's current API contract on 2026-11-19,
+for all three exchanges: Polymarket (`pm-op-v1`), Polymarket US (`pmus-v1`) and
+Kalshi (`kalshi-v2`).
 Offline tests and dry runs do not certify a funded live account. Report an issue
 with redacted configuration and an error stage; never attach keys or full SDK logs.
